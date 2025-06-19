@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAG-WebApp</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="google-auth-styles.css">
     <link rel="icon" href="RagAiImgIcon.webp">
     
     <!-- Add these meta tags for Google Auth -->
@@ -101,9 +100,37 @@
                                 </div>
                                 <div class="sign-in-options">
                                     <div id="googleSignInButton"></div>
-                                    <!-- <button class="alternative-signin-btn" id="alternativeSignIn">
-                                        Other sign-in options
-                                    </button> -->
+                                    <!-- Local Authentication Forms -->
+                                    <div class="local-auth-section">
+                                        <div class="auth-divider">
+                                            <span>or</span>
+                                        </div>
+                                        
+                                        <!-- Sign In Form -->
+                                        <form id="localSignInForm" class="local-auth-form">
+                                            <h4>Sign in with Email</h4>
+                                            <input type="email" id="localEmailInput" placeholder="Email" required>
+                                            <input type="password" id="localPasswordInput" placeholder="Password" required>
+                                            <button type="submit" class="local-auth-btn">Sign In</button>
+                                            <p class="auth-toggle">
+                                                Don't have an account? 
+                                                <a href="#" id="toggleToRegister">Register here</a>
+                                            </p>
+                                        </form>
+                                        
+                                        <!-- Register Form - CORRECTED -->
+                                        <form id="localRegisterForm" class="local-auth-form" style="display: none;">
+                                            <h4>Create Account</h4>
+                                            <input type="text" id="localRegisterNameInput" placeholder="Full Name" required>
+                                            <input type="email" id="localRegisterEmailInput" placeholder="Email" required>
+                                            <input type="password" id="localRegisterPasswordInput" placeholder="Password" required>
+                                            <button type="submit" class="local-auth-btn">Register</button>
+                                            <p class="auth-toggle">
+                                                Already have an account? 
+                                                <a href="#" id="toggleToSignIn">Sign in here</a>
+                                            </p>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -269,124 +296,98 @@
     </div>
 
     <!-- Loading the scripts -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="google-auth-module.js"></script>
     <script src="app.js"></script>
-    
-    <!-- Combined functionality script -->
     <script>
-        // Initialize all functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Google Authentication
-            if (typeof GoogleAuthManager !== 'undefined') {
-                window.authManager = new GoogleAuthManager({
-                    clientId: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
-                    onSignIn: (user) => {
-                        console.log('User signed in:', user);
-                    },
-                    onSignOut: () => {
-                        console.log('User signed out');
-                    },
-                    onError: (error) => {
-                        console.error('Auth error:', error);
-                    }
-                });
-            }
-
-            // Sidebar and theme functionality
-            const themeToggle = document.getElementById('themeToggle');
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
-            const mainWrapper = document.getElementById('mainWrapper');
-            const newChatBtn = document.getElementById('newChatBtn');
-            const chatItems = document.querySelectorAll('.chat-item');
-            const chatInput = document.getElementById('chatInput');
-            const sendButton = document.getElementById('sendButton');
-
-            // Theme toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Initializing RAG-WebApp...');
+        
+        // Theme functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
+        if (themeToggle) {
             themeToggle.addEventListener('click', () => {
                 const currentTheme = document.documentElement.getAttribute('data-theme');
                 const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                 document.documentElement.setAttribute('data-theme', newTheme);
                 localStorage.setItem('theme', newTheme);
             });
-
-            // Load saved theme
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-
-            // Sidebar toggle
-            function toggleSidebar() {
-                sidebar.classList.toggle('open');
-                sidebarOverlay.classList.toggle('active');
-                document.body.classList.toggle('sidebar-open');
-            }
-
-            sidebarToggle.addEventListener('click', toggleSidebar);
-            sidebarOverlay.addEventListener('click', toggleSidebar);
-
-            // New chat button
-            newChatBtn.addEventListener('click', () => {
-                // Remove active state from all chat items
-                chatItems.forEach(item => item.classList.remove('active'));
-                // Clear input
-                chatInput.value = '';
-                // Close sidebar on mobile
-                if (window.innerWidth < 992) {
-                    toggleSidebar();
+        }
+        
+        // Sidebar functionality - FIXED
+        const sidebarToggle = document.getElementById('sidebarToggleBtn'); // Correct ID
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const headerLeft = document.getElementById('headerLeft');
+        const mainWrapper = document.getElementById('mainWrapper');
+        
+        function showSidebar() {
+            if (sidebar) sidebar.classList.remove('sidebar--hidden');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('hidden');
+            if (mainWrapper) mainWrapper.style.setProperty('--sidebar-width', '280px');
+            if (headerLeft) headerLeft.classList.add('header-left--hidden');
+        }
+        
+        function hideSidebar() {
+            if (sidebar) sidebar.classList.add('sidebar--hidden');
+            if (sidebarOverlay) sidebarOverlay.classList.add('hidden');
+            if (mainWrapper) mainWrapper.style.setProperty('--sidebar-width', '0px');
+            if (headerLeft) headerLeft.classList.remove('header-left--hidden');
+        }
+        
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                if (sidebar && sidebar.classList.contains('sidebar--hidden')) {
+                    showSidebar();
+                } else {
+                    hideSidebar();
                 }
             });
-
-            // Chat item selection
-            chatItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    // Remove active state from all items
-                    chatItems.forEach(i => i.classList.remove('active'));
-                    // Add active state to clicked item
-                    item.classList.add('active');
-                    // Close sidebar on mobile
-                    if (window.innerWidth < 992) {
-                        toggleSidebar();
-                    }
-                });
+        }
+        
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', hideSidebar);
+        }
+        
+        // New chat functionality
+        const newChatBtn = document.getElementById('newChatBtn');
+        const chatInput = document.getElementById('chatInput');
+        
+        if (newChatBtn && chatInput) {
+            newChatBtn.addEventListener('click', () => {
+                chatInput.value = '';
+                chatInput.focus();
             });
-
-            // Auto-resize textarea
+        }
+        
+        // Auto-resize textarea
+        if (chatInput) {
             function autoResize() {
                 chatInput.style.height = 'auto';
                 chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
             }
-
+            
             chatInput.addEventListener('input', autoResize);
             chatInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    sendMessage();
+                    const event = new CustomEvent('sendMessage', { detail: { message: chatInput.value } });
+                    document.dispatchEvent(event);
                 }
             });
-
-            // Send message functionality
-            function sendMessage() {
-                const message = chatInput.value.trim();
-                if (message) {
-                    console.log('Sending message:', message);
-                    chatInput.value = '';
-                    autoResize();
-                }
-            }
-
-            sendButton.addEventListener('click', sendMessage);
-
-            // Handle resize events
-            window.addEventListener('resize', () => {
-                if (window.innerWidth >= 992) {
-                    sidebar.classList.remove('open');
-                    sidebarOverlay.classList.remove('active');
-                    document.body.classList.remove('sidebar-open');
-                }
+        }
+        
+        // Send button
+        const sendButton = document.getElementById('sendButton');
+        if (sendButton) {
+            sendButton.addEventListener('click', () => {
+                const event = new CustomEvent('sendMessage', { detail: { message: chatInput.value } });
+                document.dispatchEvent(event);
             });
-        });
+        }
+    });
     </script>
+
 </body>
 </html>

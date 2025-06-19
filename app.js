@@ -50,7 +50,6 @@ class CopilotApp {
       renderSection('chat-section-month', month);
     }
 
-
     init() {
         this.setupThemeToggle();
         this.setupChatInput();
@@ -182,132 +181,86 @@ class CopilotApp {
         }
     }
 
-  async handleSendMessage() {
-    const chatInput = document.getElementById('chatInput');
-    const sendButton = document.getElementById('sendButton');
-  
-    if (chatInput && sendButton) {
-      const message = chatInput.value.trim();
+    async handleSendMessage() {
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
     
-    if (message.length > 0) {
-      // Add loading state
-      sendButton.classList.add('loading');
-      sendButton.style.pointerEvents = 'none';
-      
-      try {
-        const sessionData = JSON.parse(localStorage.getItem('google_auth_session'));
+        if (chatInput && sendButton) {
+            const message = chatInput.value.trim();
         
-        // Send message to backend
-        const response = await fetch('https://your-backend-url.vercel.app/api/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + sessionData.token
-          },
-          body: JSON.stringify({
-            message: message,
-            userId: this.currentUser.id
-          })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          chatInput.value = '';
-          this.autoResizeTextarea(chatInput);
-          this.updateSendButtonState();
-          
-          // UPDATE SIDEBAR after successful message send
-          this.fetchUserMessages().then(messages => {
-            this.renderSidebar(messages);
-          });
-        } else {
-          console.error('Failed to send message');
+            if (message.length > 0) {
+                // Add loading state
+                sendButton.classList.add('loading');
+                sendButton.style.pointerEvents = 'none';
+                
+                try {
+                    const sessionData = JSON.parse(localStorage.getItem('google_auth_session'));
+                    
+                    // Send message to backend - UPDATED URL for local development
+                    const response = await fetch('http://localhost:3001/api/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + sessionData.token
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            userId: this.currentUser.id
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        chatInput.value = '';
+                        this.autoResizeTextarea(chatInput);
+                        this.updateSendButtonState();
+                        
+                        // UPDATE SIDEBAR after successful message send
+                        this.fetchUserMessages().then(messages => {
+                            this.renderSidebar(messages);
+                        });
+                    } else {
+                        console.error('Failed to send message');
+                    }
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                } finally {
+                    // Remove loading state
+                    sendButton.classList.remove('loading');
+                    sendButton.style.pointerEvents = 'auto';
+                }
+            }
         }
-      } catch (error) {
-        console.error('Error sending message:', error);
-      } finally {
-        // Remove loading state
-        sendButton.classList.remove('loading');
-        sendButton.style.pointerEvents = 'auto';
-      }
     }
-  }
-}
-
-
 
     async fetchUserMessages() {
-      const sessionData = localStorage.getItem('google_auth_session');
-      if (!sessionData) return [];
-  
-      const parsed = JSON.parse(sessionData);
-      if (!parsed.token) return [];
-
-      try {
-        // Replace with your actual deployed backend URL
-        const response = await fetch('https://your-backend-url.vercel.app/api/messages', {
-          headers: {
-            'Authorization': 'Bearer ' + parsed.token
-          }
-        });
+        const sessionData = localStorage.getItem('google_auth_session');
+        if (!sessionData) return [];
     
-        const data = await response.json();
-        if (data.success) {
-          return data.messages;
-        } else {
-          console.error('Failed to fetch messages:', data.message);
-          return [];
+        const parsed = JSON.parse(sessionData);
+        if (!parsed.token) return [];
+
+        try {
+            // UPDATED URL for local development
+            const response = await fetch('http://localhost:3001/api/messages', {
+                headers: {
+                    'Authorization': 'Bearer ' + parsed.token
+                }
+            });
+        
+            const data = await response.json();
+            if (data.success) {
+                return data.messages;
+            } else {
+                console.error('Failed to fetch messages:', data.message);
+                return [];
+            }
+        } catch (error) {
+            console.error('Error fetching messages:', error.message);
+            return [];
         }
-      } catch (error) {
-        console.error('Error fetching messages:', error.message);
-        return [];
-      }
     }
-
-
-    renderSidebar(messages) {
-      const today = [];
-      const week = [];
-      const month = [];
-      const now = new Date();
-
-      messages.forEach(msg => {
-        const msgDate = new Date(msg.timestamp);
-        const diffDays = (now - msgDate) / (1000 * 60 * 60 * 24);
-        if (diffDays < 1) {
-          today.push(msg);
-        } else if (diffDays < 7) {
-          week.push(msg);
-        } else if (diffDays < 30) {
-          month.push(msg);
-        }
-      });
-
-      function renderSection(sectionId, msgs) {
-        const section = document.getElementById(sectionId);
-        if (!section) return;
-        section.innerHTML = '';
-        if (msgs.length === 0) {
-          section.innerHTML = '<div class="chat-item" style="color:#888;">No chats</div>';
-          return;
-        }
-        msgs.forEach((msg, idx) => {
-          const item = document.createElement('div');
-          item.className = 'chat-item';
-          item.dataset.chatId = msg._id || idx;
-          item.innerHTML = `
-            <span class="chat-icon">💬</span>
-            <span class="chat-title">${msg.message.substring(0, 30)}${msg.message.length > 30 ? '…' : ''}</span>`;
-          section.appendChild(item);
-        });
-      }
-
-      renderSection('chat-section-today', today);
-      renderSection('chat-section-week', week);
-      renderSection('chat-section-month', month);
-    }
-
 
     showResponseDemo(userMessage) {
         // Create a simple response indicator
@@ -497,6 +450,914 @@ function setupAccessibility() {
     });
 }
 
+// ----------------------------------------------------
+
+/**
+ * Google Authentication Module
+ * Comprehensive, non-intrusive authentication system
+ * with modern JWT handling and user state management
+ * UPDATED: Now supports both Google OAuth and local authentication
+ */
+
+class GoogleAuthManager {
+    constructor(config = {}) {
+        this.config = {
+            clientId: config.clientId || '840850164307-m4lks13qq8ffu6sadbhu05233upog1ni.apps.googleusercontent.com',
+            onSignIn: config.onSignIn || (() => {}),
+            onSignOut: config.onSignOut || (() => {}),
+            onError: config.onError || (() => {}),
+            debugMode: config.debugMode || false,
+            autoPrompt: config.autoPrompt || false,
+            ...config
+        };
+
+        this.currentUser = null;
+        this.isInitialized = false;
+        this.elements = {};
+        
+        this.init();
+    }
+
+    /**
+     * Initialize the authentication system
+     */
+    async init() {
+        try {
+            this.log('Initializing Google Auth Manager...');
+            
+            // Cache DOM elements
+            this.cacheElements();
+            
+            // Set up event listeners
+            this.setupEventListeners();
+            
+            // Wait for Google library to load
+            await this.waitForGoogleLibrary();
+            
+            // Initialize Google Sign-In
+            this.initializeGoogleSignIn();
+            
+            // Restore user session if exists
+            this.restoreUserSession();
+            
+            this.isInitialized = true;
+            this.log('Google Auth Manager initialized successfully');
+            
+        } catch (error) {
+            this.handleError('Initialization failed', error);
+        }
+    }
+
+    /**
+     * Cache DOM elements for better performance
+     */
+    cacheElements() {
+      this.elements = {
+          userProfileContainer: document.getElementById('userProfileContainer'),
+          userProfileButton: document.getElementById('userProfileButton'),
+          userDropdown: document.getElementById('userDropdown'),
+          userIcon: document.getElementById('userIcon'),
+          userAvatar: document.getElementById('userAvatar'),
+          userInitials: document.getElementById('userInitials'),
+          signedOutSection: document.getElementById('signedOutSection'),
+          signedInSection: document.getElementById('signedInSection'),
+          googleSignInButton: document.getElementById('googleSignInButton'),
+          userName: document.getElementById('userName'),
+          userEmail: document.getElementById('userEmail'),
+          dropdownUserAvatar: document.getElementById('dropdownUserAvatar'),
+          dropdownUserInitials: document.getElementById('dropdownUserInitials'),
+          signOutButton: document.getElementById('signOutButton'),
+          profileSettings: document.getElementById('profileSettings'),
+          preferences: document.getElementById('preferences'),
+          alternativeSignIn: document.getElementById('alternativeSignIn'),
+          // Local authentication elements - CORRECTED
+          localEmailInput: document.getElementById('localEmailInput'),
+          localPasswordInput: document.getElementById('localPasswordInput'),
+          localRegisterNameInput: document.getElementById('localRegisterNameInput'),
+          localRegisterEmailInput: document.getElementById('localRegisterEmailInput'),
+          localRegisterPasswordInput: document.getElementById('localRegisterPasswordInput'),
+          localSignInForm: document.getElementById('localSignInForm'),
+          localRegisterForm: document.getElementById('localRegisterForm'),
+          toggleToRegister: document.getElementById('toggleToRegister'),
+          toggleToSignIn: document.getElementById('toggleToSignIn')
+      };
+  }
+
+
+
+    /**
+     * Set up event listeners
+     */
+    setupEventListeners() {
+        // Profile button click
+        if (this.elements.userProfileButton) {
+            this.elements.userProfileButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleDropdown();
+            });
+        }
+
+        // Sign out button
+        if (this.elements.signOutButton) {
+            this.elements.signOutButton.addEventListener('click', () => {
+                this.signOut();
+            });
+        }
+
+        // Profile settings button
+        if (this.elements.profileSettings) {
+            this.elements.profileSettings.addEventListener('click', () => {
+                this.handleProfileSettings();
+            });
+        }
+
+        // Preferences button
+        if (this.elements.preferences) {
+            this.elements.preferences.addEventListener('click', () => {
+                this.handlePreferences();
+            });
+        }
+
+        // Alternative sign in button
+        if (this.elements.alternativeSignIn) {
+            this.elements.alternativeSignIn.addEventListener('click', () => {
+                this.handleAlternativeSignIn();
+            });
+        }
+
+        // NEW: Local authentication event listeners
+        if (this.elements.localSignInForm) {
+            this.elements.localSignInForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLocalSignIn();
+            });
+        }
+
+        if (this.elements.localRegisterForm) {
+            this.elements.localRegisterForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLocalRegister();
+            });
+        }
+
+        if (this.elements.toggleToRegister) {
+            this.elements.toggleToRegister.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showRegisterForm();
+            });
+        }
+
+        if (this.elements.toggleToSignIn) {
+            this.elements.toggleToSignIn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showSignInForm();
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!this.elements.userProfileContainer?.contains(e.target)) {
+                this.closeDropdown();
+            }
+        });
+
+        // Close dropdown on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeDropdown();
+            }
+        });
+    }
+
+    /**
+     * NEW: Handle local sign in
+     */
+    async handleLocalSignIn() {
+        const email = this.elements.localEmailInput?.value;
+        const password = this.elements.localPasswordInput?.value;
+
+        if (!email || !password) {
+            this.showError('Please fill in all fields');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3001/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Create user object similar to Google auth
+                const user = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    picture: data.user.picture,
+                    token: data.token,
+                    authType: 'local'
+                };
+
+                this.currentUser = user;
+                this.saveUserSession(user);
+                this.updateUIForSignedIn(user);
+                this.closeDropdown();
+                this.config.onSignIn(user);
+
+                // Fetch messages after sign in
+                this.fetchUserMessages().then(messages => {
+                    this.renderSidebar(messages);
+                });
+
+                this.log('Local user signed in successfully:', user);
+            } else {
+                this.showError(data.message || 'Sign in failed');
+            }
+        } catch (error) {
+            this.handleError('Local sign in failed', error);
+            this.showError('Network error. Please try again.');
+        }
+    }
+
+    /**
+     * NEW: Handle local registration
+     */
+    async handleLocalRegister() {
+    const email = this.elements.localRegisterEmailInput?.value;
+    const password = this.elements.localRegisterPasswordInput?.value;
+    const name = this.elements.localRegisterNameInput?.value;
+
+    console.log('Register attempt:', { email, name, password: password ? 'provided' : 'missing' });
+
+    if (!email || !password || !name) {
+        this.showError('Please fill in all fields');
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3001/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password, name })
+        });
+
+        const data = await response.json();
+        console.log('Register response:', data);
+
+        if (data.success) {
+            const user = {
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.name,
+                picture: data.user.picture,
+                token: data.token,
+                authType: 'local'
+            };
+
+            this.currentUser = user;
+            this.saveUserSession(user);
+            this.updateUIForSignedIn(user);
+            this.closeDropdown();
+            this.config.onSignIn(user);
+
+            console.log('Local user registered successfully:', user);
+        } else {
+            this.showError(data.message || 'Registration failed');
+        }
+    } catch (error) {
+        console.error('Local registration failed:', error);
+        this.showError('Network error. Please try again.');
+    }
+}
+
+    /**
+     * NEW: Show register form
+     */
+    showRegisterForm() {
+        if (this.elements.localSignInForm) {
+            this.elements.localSignInForm.style.display = 'none';
+        }
+        if (this.elements.localRegisterForm) {
+            this.elements.localRegisterForm.style.display = 'block';
+        }
+    }
+
+    /**
+     * NEW: Show sign in form
+     */
+    showSignInForm() {
+        if (this.elements.localRegisterForm) {
+            this.elements.localRegisterForm.style.display = 'none';
+        }
+        if (this.elements.localSignInForm) {
+            this.elements.localSignInForm.style.display = 'block';
+        }
+    }
+
+    /**
+     * NEW: Show error message
+     */
+    showError(message) {
+        // You can customize this to show errors in your UI
+        console.error('Auth Error:', message);
+        alert(message); // Simple alert for now - you can replace with better UI
+    }
+
+    /**
+     * Wait for Google library to load
+     */
+    waitForGoogleLibrary() {
+        return new Promise((resolve, reject) => {
+            const maxAttempts = 50;
+            let attempts = 0;
+
+            const checkLibrary = () => {
+                attempts++;
+                
+                if (window.google && window.google.accounts && window.google.accounts.id) {
+                    resolve();
+                    return;
+                }
+
+                if (attempts >= maxAttempts) {
+                    reject(new Error('Google library failed to load'));
+                    return;
+                }
+
+                setTimeout(checkLibrary, 100);
+            };
+
+            checkLibrary();
+        });
+    }
+
+    /**
+     * Initialize Google Sign-In
+     */
+    initializeGoogleSignIn() {
+        if (!this.config.clientId) {
+            this.handleError('Configuration error', new Error('Client ID is required'));
+            return;
+        }
+
+        // Initialize the Google Identity Services
+        google.accounts.id.initialize({
+            client_id: this.config.clientId,
+            callback: this.handleCredentialResponse.bind(this),
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            context: 'signin'
+        });
+
+        // Render the Sign-In button
+        this.renderSignInButton();
+
+        // Set up One Tap if enabled
+        if (this.config.autoPrompt) {
+            this.setupOneTap();
+        }
+
+        // Make handleCredentialResponse globally accessible for HTML callback
+        window.handleCredentialResponse = this.handleCredentialResponse.bind(this);
+    }
+
+    /**
+     * Render the Google Sign-In button
+     */
+    renderSignInButton() {
+        if (this.elements.googleSignInButton) {
+            google.accounts.id.renderButton(
+                this.elements.googleSignInButton,
+                {
+                    theme: 'outline',
+                    size: 'large',
+                    width: '100%',
+                    text: 'signin_with',
+                    shape: 'rectangular',
+                    logo_alignment: 'left'
+                }
+            );
+        }
+    }
+
+    /**
+     * Set up Google One Tap
+     */
+    setupOneTap() {
+        // Only show One Tap if user is not already signed in
+        if (!this.currentUser) {
+            google.accounts.id.prompt((notification) => {
+                this.log('One Tap notification:', notification);
+                
+                if (notification.isNotDisplayed()) {
+                    this.log('One Tap not displayed:', notification.getNotDisplayedReason());
+                } else if (notification.isSkippedMoment()) {
+                    this.log('One Tap skipped:', notification.getSkippedReason());
+                } else if (notification.isDismissedMoment()) {
+                    this.log('One Tap dismissed:', notification.getDismissedReason());
+                }
+            });
+        }
+    }
+
+    /**
+     * Handle credential response from Google
+     */
+    async handleCredentialResponse(response) {
+        try {
+            this.log('Credential response received');
+            
+            // Decode the JWT token
+            const userInfo = this.decodeJWT(response.credential);
+            
+            if (!userInfo) {
+                throw new Error('Invalid credential token');
+            }
+
+            // Create user object
+            const user = {
+                id: userInfo.sub,
+                email: userInfo.email,
+                name: userInfo.name,
+                picture: userInfo.picture,
+                given_name: userInfo.given_name,
+                family_name: userInfo.family_name,
+                email_verified: userInfo.email_verified,
+                token: response.credential,
+                authType: 'google'
+            };
+
+            // Store user information
+            this.currentUser = user;
+            
+            // Save to localStorage for session persistence
+            this.saveUserSession(user);
+            
+            // Update UI
+            this.updateUIForSignedIn(user);
+
+            this.fetchUserMessages().then(messages => {
+                this.renderSidebar(messages);
+            });
+            
+            // Close dropdown
+            this.closeDropdown();
+            
+            // Call custom sign-in callback
+            this.config.onSignIn(user);
+            
+            this.log('User signed in successfully:', user);
+            
+        } catch (error) {
+            this.handleError('Sign-in failed', error);
+        }
+    }
+
+    /**
+     * Decode JWT token
+     */
+    decodeJWT(token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+                atob(base64)
+                    .split('')
+                    .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join('')
+            );
+            return JSON.parse(jsonPayload);
+        } catch (error) {
+            this.handleError('JWT decode failed', error);
+            return null;
+        }
+    }
+
+    /**
+     * Sign out the user
+     */
+    signOut() {
+        try {
+            // Sign out from Google
+            if (window.google && google.accounts && google.accounts.id) {
+                google.accounts.id.disableAutoSelect();
+            }
+
+            // Clear user data
+            this.currentUser = null;
+            
+            // Remove from localStorage
+            this.clearUserSession();
+            
+            // Update UI
+            this.updateUIForSignedOut();
+            
+            // Close dropdown
+            this.closeDropdown();
+            
+            // Call custom sign-out callback
+            this.config.onSignOut();
+            
+            this.log('User signed out successfully');
+            
+        } catch (error) {
+            this.handleError('Sign-out failed', error);
+        }
+    }
+
+    /**
+     * Toggle dropdown visibility
+     */
+    toggleDropdown() {
+        if (this.elements.userDropdown) {
+            const isVisible = this.elements.userDropdown.classList.contains('show');
+            
+            if (isVisible) {
+                this.closeDropdown();
+            } else {
+                this.openDropdown();
+            }
+        }
+    }
+
+    /**
+     * Open dropdown
+     */
+    openDropdown() {
+        if (this.elements.userDropdown) {
+            this.elements.userDropdown.classList.add('show');
+            this.elements.userProfileButton?.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    /**
+     * Close dropdown
+     */
+    closeDropdown() {
+        if (this.elements.userDropdown) {
+            this.elements.userDropdown.classList.remove('show');
+            this.elements.userProfileButton?.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    /**
+     * Update UI for signed-in state
+     */
+    updateUIForSignedIn(user) {
+        // Hide user icon, show avatar or initials
+        if (this.elements.userIcon) {
+            this.elements.userIcon.style.display = 'none';
+        }
+
+        // Set profile button avatar
+        if (user.picture && this.elements.userAvatar) {
+            this.elements.userAvatar.src = user.picture;
+            this.elements.userAvatar.style.display = 'block';
+            if (this.elements.userInitials) {
+                this.elements.userInitials.style.display = 'none';
+            }
+        } else {
+            // Use initials as fallback
+            const initials = this.generateInitials(user.name);
+            if (this.elements.userInitials) {
+                this.elements.userInitials.textContent = initials;
+                this.elements.userInitials.style.display = 'flex';
+            }
+            if (this.elements.userAvatar) {
+                this.elements.userAvatar.style.display = 'none';
+            }
+        }
+
+        // Update dropdown content
+        if (this.elements.userName) {
+            this.elements.userName.textContent = user.name || 'User';
+        }
+        if (this.elements.userEmail) {
+            this.elements.userEmail.textContent = user.email || '';
+        }
+
+        // Update dropdown avatar
+        if (user.picture && this.elements.dropdownUserAvatar) {
+            this.elements.dropdownUserAvatar.src = user.picture;
+            this.elements.dropdownUserAvatar.style.display = 'block';
+            if (this.elements.dropdownUserInitials) {
+                this.elements.dropdownUserInitials.style.display = 'none';
+            }
+        } else {
+            const initials = this.generateInitials(user.name);
+            if (this.elements.dropdownUserInitials) {
+                this.elements.dropdownUserInitials.textContent = initials;
+                this.elements.dropdownUserInitials.style.display = 'flex';
+            }
+            if (this.elements.dropdownUserAvatar) {
+                this.elements.dropdownUserAvatar.style.display = 'none';
+            }
+        }
+
+        // Show signed-in section, hide signed-out section
+        if (this.elements.signedInSection) {
+            this.elements.signedInSection.style.display = 'block';
+        }
+        if (this.elements.signedOutSection) {
+            this.elements.signedOutSection.style.display = 'none';
+        }
+    }
+
+    /**
+     * Update UI for signed-out state
+     */
+    updateUIForSignedOut() {
+        // Show user icon, hide avatar and initials
+        if (this.elements.userIcon) {
+            this.elements.userIcon.style.display = 'block';
+        }
+        if (this.elements.userAvatar) {
+            this.elements.userAvatar.style.display = 'none';
+        }
+        if (this.elements.userInitials) {
+            this.elements.userInitials.style.display = 'none';
+        }
+
+        // Show signed-out section, hide signed-in section
+        if (this.elements.signedOutSection) {
+            this.elements.signedOutSection.style.display = 'block';
+        }
+        if (this.elements.signedInSection) {
+            this.elements.signedInSection.style.display = 'none';
+        }
+
+        // Reset forms to sign in view
+        this.showSignInForm();
+    }
+
+    /**
+     * Generate initials from name
+     */
+    generateInitials(name) {
+        if (!name) return 'U';
+        
+        const words = name.trim().split(' ');
+        if (words.length === 1) {
+            return words[0].charAt(0).toUpperCase();
+        } else {
+            return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+        }
+    }
+
+    /**
+     * Save user session to localStorage
+     */
+    saveUserSession(user) {
+        try {
+            const sessionData = {
+                user: user,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('google_auth_session', JSON.stringify(sessionData));
+        } catch (error) {
+            this.log('Failed to save user session:', error);
+        }
+    }
+
+    /**
+     * Restore user session from localStorage
+     */
+    restoreUserSession() {
+        try {
+            const sessionData = localStorage.getItem('google_auth_session');
+            if (!sessionData) return;
+
+            const parsed = JSON.parse(sessionData);
+            const sessionAge = Date.now() - parsed.timestamp;
+        
+            // Session expires after 24 hours
+            if (sessionAge > 24 * 60 * 60 * 1000) {
+                this.clearUserSession();
+                return;
+            }
+
+            if (parsed.user) {
+                this.currentUser = parsed.user;
+                this.updateUIForSignedIn(parsed.user);
+            
+                // Fetch and render chat history after session restore
+                this.fetchUserMessages().then(messages => {
+                    this.renderSidebar(messages);
+                });
+            
+                console.log('User session restored');
+            }
+        } catch (error) {
+            console.log('Failed to restore user session:', error);
+            this.clearUserSession();
+        }
+    }
+
+    /**
+     * Clear user session from localStorage
+     */
+    clearUserSession() {
+        try {
+            localStorage.removeItem('google_auth_session');
+        } catch (error) {
+            this.log('Failed to clear user session:', error);
+        }
+
+        const todaySection = document.getElementById('chat-section-today');
+        const weekSection = document.getElementById('chat-section-week');
+        const monthSection = document.getElementById('chat-section-month');
+        if (todaySection) todaySection.innerHTML = '';
+        if (weekSection) weekSection.innerHTML = '';
+        if (monthSection) monthSection.innerHTML = '';
+
+        //clear current user
+        this.currentUser = null;
+    }
+
+    /**
+     * NEW: Fetch user messages (moved from CopilotApp for better integration)
+     */
+    async fetchUserMessages() {
+        const sessionData = localStorage.getItem('google_auth_session');
+        if (!sessionData) return [];
+    
+        const parsed = JSON.parse(sessionData);
+        if (!parsed.token) return [];
+
+        try {
+            const response = await fetch('http://localhost:3001/api/messages', {
+                headers: {
+                    'Authorization': 'Bearer ' + parsed.token
+                }
+            });
+        
+            const data = await response.json();
+            if (data.success) {
+                return data.messages;
+            } else {
+                console.error('Failed to fetch messages:', data.message);
+                return [];
+            }
+        } catch (error) {
+            console.error('Error fetching messages:', error.message);
+            return [];
+        }
+    }
+
+    /**
+     * NEW: Render sidebar (moved from CopilotApp for better integration)
+     */
+    renderSidebar(messages) {
+        const today = [];
+        const week = [];
+        const month = [];
+        const now = new Date();
+
+        messages.forEach(msg => {
+            const msgDate = new Date(msg.timestamp);
+            const diffDays = (now - msgDate) / (1000 * 60 * 60 * 24);
+            if (diffDays < 1) {
+                today.push(msg);
+            } else if (diffDays < 7) {
+                week.push(msg);
+            } else if (diffDays < 30) {
+                month.push(msg);
+            }
+        });
+
+        function renderSection(sectionId, msgs) {
+            const section = document.getElementById(sectionId);
+            if (!section) return;
+            section.innerHTML = '';
+            if (msgs.length === 0) {
+                section.innerHTML = '<div class="chat-item chat-item--empty">No messages yet</div>';
+                return;
+            }
+            msgs.forEach((msg, idx) => {
+                const item = document.createElement('div');
+                item.className = 'chat-item chat-item--dynamic';
+                item.dataset.chatId = msg._id || idx;
+                item.innerHTML = `
+                    <span class="chat-icon">💬</span>
+                    <span class="chat-title">${msg.message.substring(0, 30)}${msg.message.length > 30 ? '…' : ''}</span>`;
+                section.appendChild(item);
+            });
+        }
+
+        renderSection('chat-section-today', today);
+        renderSection('chat-section-week', week);
+        renderSection('chat-section-month', month);
+    }
+
+    /**
+     * Handle profile settings click
+     */
+    handleProfileSettings() {
+        this.log('Profile settings clicked');
+        this.closeDropdown();
+        // Add your profile settings logic here
+        // Example: window.location.href = '/profile';
+    }
+
+    /**
+     * Handle preferences click
+     */
+    handlePreferences() {
+        this.log('Preferences clicked');
+        this.closeDropdown();
+        // Add your preferences logic here
+        // Example: window.location.href = '/preferences';
+    }
+
+    /**
+     * Handle alternative sign in click
+     */
+    handleAlternativeSignIn() {
+        this.log('Alternative sign in clicked');
+        this.closeDropdown();
+        // Add your alternative sign in logic here
+        // Example: window.location.href = '/signin';
+    }
+
+    /**
+     * Get current user
+     */
+    getCurrentUser() {
+        return this.currentUser;
+    }
+
+    /**
+     * Check if user is signed in
+     */
+    isSignedIn() {
+        return !!this.currentUser;
+    }
+
+    /**
+     * Enable One Tap
+     */
+    enableOneTap() {
+        this.config.autoPrompt = true;
+        this.setupOneTap();
+    }
+
+    /**
+     * Disable One Tap
+     */
+    disableOneTap() {
+        this.config.autoPrompt = false;
+        if (window.google && google.accounts && google.accounts.id) {
+            google.accounts.id.cancel();
+        }
+    }
+
+    /**
+     * Error handling
+     */
+    handleError(message, error) {
+        this.log(`Error: ${message}`, error);
+        this.config.onError({ message, error });
+    }
+
+    /**
+     * Logging utility
+     */
+    log(...args) {
+        if (this.config.debugMode) {
+            console.log('[GoogleAuthManager]', ...args);
+        }
+    }
+
+    /**
+     * Cleanup method
+     */
+    destroy() {
+        // Remove event listeners
+        // Clear user data
+        this.currentUser = null;
+        this.isInitialized = false;
+        
+        // Clear session
+        this.clearUserSession();
+        
+        this.log('GoogleAuthManager destroyed');
+    }
+}
+
+// Export for use
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = GoogleAuthManager;
+} else if (typeof window !== 'undefined') {
+    window.GoogleAuthManager = GoogleAuthManager;
+}
+
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     const app = new CopilotApp();
@@ -512,747 +1373,143 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.style.opacity = '1';
         document.body.style.transform = 'translateY(0)';
     }, 100);
+
+    // NEW: Initialize authentication manager
+    const authManager = new GoogleAuthManager({
+        debugMode: true,
+        onSignIn: (user) => {
+            console.log('User signed in:', user);
+            // Update CopilotApp with current user
+            app.currentUser = user;
+        },
+        onSignOut: () => {
+            console.log('User signed out');
+            // Clear CopilotApp user
+            app.currentUser = null;
+        },
+        onError: (error) => {
+            console.error('Auth error:', error);
+        }
+    });
+
+    // Make auth manager globally accessible
+    window.authManager = authManager;
 });
-
-// Handle window resize
-window.addEventListener('resize', () => {
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput && document.activeElement === chatInput) {
-        setTimeout(() => {
-            chatInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 100);
-    }
-});
-
-// Prevent form submission if wrapped in a form
-document.addEventListener('submit', (e) => {
-    e.preventDefault();
-});
-
-
-
-
-// ----------------------------------------------------
-
-/**
- * Google Authentication Module
- * Comprehensive, non-intrusive authentication system
- * with modern JWT handling and user state management
- */
-
-class GoogleAuthManager {
-  constructor(config = {}) {
-    this.config = {
-      clientId: config.clientId || '',
-      onSignIn: config.onSignIn || (() => {}),
-      onSignOut: config.onSignOut || (() => {}),
-      onError: config.onError || (() => {}),
-      debugMode: config.debugMode || false,
-      autoPrompt: config.autoPrompt || false,
-      ...config
-    };
-
-    this.currentUser = null;
-    this.isInitialized = false;
-    this.elements = {};
-    
-    this.init();
-  }
-
-  /**
-   * Initialize the authentication system
-   */
-  async init() {
-    try {
-      this.log('Initializing Google Auth Manager...');
-      
-      // Cache DOM elements
-      this.cacheElements();
-      
-      // Set up event listeners
-      this.setupEventListeners();
-      
-      // Wait for Google library to load
-      await this.waitForGoogleLibrary();
-      
-      // Initialize Google Sign-In
-      this.initializeGoogleSignIn();
-      
-      // Restore user session if exists
-      this.restoreUserSession();
-      
-      this.isInitialized = true;
-      this.log('Google Auth Manager initialized successfully');
-      
-    } catch (error) {
-      this.handleError('Initialization failed', error);
-    }
-  }
-
-  /**
-   * Cache DOM elements for better performance
-   */
-  cacheElements() {
-    this.elements = {
-      userProfileContainer: document.getElementById('userProfileContainer'),
-      userProfileButton: document.getElementById('userProfileButton'),
-      userDropdown: document.getElementById('userDropdown'),
-      userIcon: document.getElementById('userIcon'),
-      userAvatar: document.getElementById('userAvatar'),
-      userInitials: document.getElementById('userInitials'),
-      signedOutSection: document.getElementById('signedOutSection'),
-      signedInSection: document.getElementById('signedInSection'),
-      googleSignInButton: document.getElementById('googleSignInButton'),
-      userName: document.getElementById('userName'),
-      userEmail: document.getElementById('userEmail'),
-      dropdownUserAvatar: document.getElementById('dropdownUserAvatar'),
-      dropdownUserInitials: document.getElementById('dropdownUserInitials'),
-      signOutButton: document.getElementById('signOutButton'),
-      profileSettings: document.getElementById('profileSettings'),
-      preferences: document.getElementById('preferences'),
-      alternativeSignIn: document.getElementById('alternativeSignIn')
-    };
-  }
-
-  /**
-   * Set up event listeners
-   */
-  setupEventListeners() {
-    // Profile button click
-    if (this.elements.userProfileButton) {
-      this.elements.userProfileButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.toggleDropdown();
-      });
-    }
-
-    // Sign out button
-    if (this.elements.signOutButton) {
-      this.elements.signOutButton.addEventListener('click', () => {
-        this.signOut();
-      });
-    }
-
-    // Profile settings button
-    if (this.elements.profileSettings) {
-      this.elements.profileSettings.addEventListener('click', () => {
-        this.handleProfileSettings();
-      });
-    }
-
-    // Preferences button
-    if (this.elements.preferences) {
-      this.elements.preferences.addEventListener('click', () => {
-        this.handlePreferences();
-      });
-    }
-
-    // Alternative sign in button
-    if (this.elements.alternativeSignIn) {
-      this.elements.alternativeSignIn.addEventListener('click', () => {
-        this.handleAlternativeSignIn();
-      });
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!this.elements.userProfileContainer?.contains(e.target)) {
-        this.closeDropdown();
-      }
-    });
-
-    // Close dropdown on Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.closeDropdown();
-      }
-    });
-  }
-
-  /**
-   * Wait for Google library to load
-   */
-  waitForGoogleLibrary() {
-    return new Promise((resolve, reject) => {
-      const maxAttempts = 50;
-      let attempts = 0;
-
-      const checkLibrary = () => {
-        attempts++;
-        
-        if (window.google && window.google.accounts && window.google.accounts.id) {
-          resolve();
-          return;
-        }
-
-        if (attempts >= maxAttempts) {
-          reject(new Error('Google library failed to load'));
-          return;
-        }
-
-        setTimeout(checkLibrary, 100);
-      };
-
-      checkLibrary();
-    });
-  }
-
-  /**
-   * Initialize Google Sign-In
-   */
-  initializeGoogleSignIn() {
-    if (!this.config.clientId) {
-      this.handleError('Configuration error', new Error('Client ID is required'));
-      return;
-    }
-
-    // Initialize the Google Identity Services
-    google.accounts.id.initialize({
-      client_id: '840850164307-m4lks13qq8ffu6sadbhu05233upog1ni.apps.googleusercontent.com',
-      callback: this.handleCredentialResponse.bind(this),
-      auto_select: false,
-      cancel_on_tap_outside: true,
-      context: 'signin'
-    });
-
-    // Render the Sign-In button
-    this.renderSignInButton();
-
-    // Set up One Tap if enabled
-    if (this.config.autoPrompt) {
-      this.setupOneTap();
-    }
-
-    // Make handleCredentialResponse globally accessible for HTML callback
-    window.handleCredentialResponse = this.handleCredentialResponse.bind(this);
-  }
-
-  /**
-   * Render the Google Sign-In button
-   */
-  renderSignInButton() {
-    if (this.elements.googleSignInButton) {
-      google.accounts.id.renderButton(
-        this.elements.googleSignInButton,
-        {
-          theme: 'outline',
-          size: 'large',
-          width: '100%',
-          text: 'signin_with',
-          shape: 'rectangular',
-          logo_alignment: 'left'
-        }
-      );
-    }
-  }
-
-  /**
-   * Set up Google One Tap
-   */
-  setupOneTap() {
-    // Only show One Tap if user is not already signed in
-    if (!this.currentUser) {
-      google.accounts.id.prompt((notification) => {
-        this.log('One Tap notification:', notification);
-        
-        if (notification.isNotDisplayed()) {
-          this.log('One Tap not displayed:', notification.getNotDisplayedReason());
-        } else if (notification.isSkippedMoment()) {
-          this.log('One Tap skipped:', notification.getSkippedReason());
-        } else if (notification.isDismissedMoment()) {
-          this.log('One Tap dismissed:', notification.getDismissedReason());
-        }
-      });
-    }
-  }
-
-  /**
-   * Handle credential response from Google
-   */
-  async handleCredentialResponse(response) {
-    try {
-      this.log('Credential response received');
-      
-      // Decode the JWT token
-      const userInfo = this.decodeJWT(response.credential);
-      
-      if (!userInfo) {
-        throw new Error('Invalid credential token');
-      }
-
-      // Create user object
-      const user = {
-        id: userInfo.sub,
-        email: userInfo.email,
-        name: userInfo.name,
-        picture: userInfo.picture,
-        given_name: userInfo.given_name,
-        family_name: userInfo.family_name,
-        email_verified: userInfo.email_verified,
-        token: response.credential
-      };
-
-      // Store user information
-      this.currentUser = user;
-      
-      // Save to localStorage for session persistence
-      this.saveUserSession(user);
-      
-      // Update UI
-      this.updateUIForSignedIn(user);
-
-      this.fetchUserMessages().then(messages => {
-        this.renderSidebar(messages);
-      });
-      
-      // Close dropdown
-      this.closeDropdown();
-      
-      // Call custom sign-in callback
-      this.config.onSignIn(user);
-      
-      this.log('User signed in successfully:', user);
-      
-    } catch (error) {
-      this.handleError('Sign-in failed', error);
-    }
-  }
-
-  /**
-   * Decode JWT token
-   */
-  decodeJWT(token) {
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      return JSON.parse(jsonPayload);
-    } catch (error) {
-      this.handleError('JWT decode failed', error);
-      return null;
-    }
-  }
-
-  /**
-   * Sign out the user
-   */
-  signOut() {
-    try {
-      // Sign out from Google
-      if (window.google && google.accounts && google.accounts.id) {
-        google.accounts.id.disableAutoSelect();
-      }
-
-      // Clear user data
-      this.currentUser = null;
-      
-      // Remove from localStorage
-      this.clearUserSession();
-      
-      // Update UI
-      this.updateUIForSignedOut();
-      
-      // Close dropdown
-      this.closeDropdown();
-      
-      // Call custom sign-out callback
-      this.config.onSignOut();
-      
-      this.log('User signed out successfully');
-      
-    } catch (error) {
-      this.handleError('Sign-out failed', error);
-    }
-  }
-
-  /**
-   * Toggle dropdown visibility
-   */
-  toggleDropdown() {
-    if (this.elements.userDropdown) {
-      const isVisible = this.elements.userDropdown.classList.contains('show');
-      
-      if (isVisible) {
-        this.closeDropdown();
-      } else {
-        this.openDropdown();
-      }
-    }
-  }
-
-  /**
-   * Open dropdown
-   */
-  openDropdown() {
-    if (this.elements.userDropdown) {
-      this.elements.userDropdown.classList.add('show');
-      this.elements.userProfileButton?.setAttribute('aria-expanded', 'true');
-    }
-  }
-
-  /**
-   * Close dropdown
-   */
-  closeDropdown() {
-    if (this.elements.userDropdown) {
-      this.elements.userDropdown.classList.remove('show');
-      this.elements.userProfileButton?.setAttribute('aria-expanded', 'false');
-    }
-  }
-
-  /**
-   * Update UI for signed-in state
-   */
-  updateUIForSignedIn(user) {
-    // Hide user icon, show avatar or initials
-    if (this.elements.userIcon) {
-      this.elements.userIcon.style.display = 'none';
-    }
-
-    // Set profile button avatar
-    if (user.picture && this.elements.userAvatar) {
-      this.elements.userAvatar.src = user.picture;
-      this.elements.userAvatar.style.display = 'block';
-      if (this.elements.userInitials) {
-        this.elements.userInitials.style.display = 'none';
-      }
-    } else {
-      // Use initials as fallback
-      const initials = this.generateInitials(user.name);
-      if (this.elements.userInitials) {
-        this.elements.userInitials.textContent = initials;
-        this.elements.userInitials.style.display = 'flex';
-      }
-      if (this.elements.userAvatar) {
-        this.elements.userAvatar.style.display = 'none';
-      }
-    }
-
-    // Update dropdown content
-    if (this.elements.userName) {
-      this.elements.userName.textContent = user.name || 'User';
-    }
-    if (this.elements.userEmail) {
-      this.elements.userEmail.textContent = user.email || '';
-    }
-
-    // Update dropdown avatar
-    if (user.picture && this.elements.dropdownUserAvatar) {
-      this.elements.dropdownUserAvatar.src = user.picture;
-      this.elements.dropdownUserAvatar.style.display = 'block';
-      if (this.elements.dropdownUserInitials) {
-        this.elements.dropdownUserInitials.style.display = 'none';
-      }
-    } else {
-      const initials = this.generateInitials(user.name);
-      if (this.elements.dropdownUserInitials) {
-        this.elements.dropdownUserInitials.textContent = initials;
-        this.elements.dropdownUserInitials.style.display = 'flex';
-      }
-      if (this.elements.dropdownUserAvatar) {
-        this.elements.dropdownUserAvatar.style.display = 'none';
-      }
-    }
-
-    // Show signed-in section, hide signed-out section
-    if (this.elements.signedInSection) {
-      this.elements.signedInSection.style.display = 'block';
-    }
-    if (this.elements.signedOutSection) {
-      this.elements.signedOutSection.style.display = 'none';
-    }
-  }
-
-  /**
-   * Update UI for signed-out state
-   */
-  updateUIForSignedOut() {
-    // Show user icon, hide avatar and initials
-    if (this.elements.userIcon) {
-      this.elements.userIcon.style.display = 'block';
-    }
-    if (this.elements.userAvatar) {
-      this.elements.userAvatar.style.display = 'none';
-    }
-    if (this.elements.userInitials) {
-      this.elements.userInitials.style.display = 'none';
-    }
-
-    // Show signed-out section, hide signed-in section
-    if (this.elements.signedOutSection) {
-      this.elements.signedOutSection.style.display = 'block';
-    }
-    if (this.elements.signedInSection) {
-      this.elements.signedInSection.style.display = 'none';
-    }
-  }
-
-  /**
-   * Generate initials from name
-   */
-  generateInitials(name) {
-    if (!name) return 'U';
-    
-    const words = name.trim().split(' ');
-    if (words.length === 1) {
-      return words[0].charAt(0).toUpperCase();
-    } else {
-      return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
-    }
-  }
-
-  /**
-   * Save user session to localStorage
-   */
-  saveUserSession(user) {
-    try {
-      const sessionData = {
-        user: user,
-        timestamp: Date.now()
-      };
-      localStorage.setItem('google_auth_session', JSON.stringify(sessionData));
-    } catch (error) {
-      this.log('Failed to save user session:', error);
-    }
-  }
-
-  /**
-   * Restore user session from localStorage
-   */
-  restoreUserSession() {
-    try {
-      // Change this line from 'google_r_session' to 'google_auth_session'
-      const sessionData = localStorage.getItem('google_auth_session');
-      if (!sessionData) return;
-
-      const parsed = JSON.parse(sessionData);
-      const sessionAge = Date.now() - parsed.timestamp;
-    
-      // Session expires after 24 hours
-      if (sessionAge > 24 * 60 * 60 * 1000) {
-        this.clearUserSession();
-        return;
-      }
-
-      if (parsed.user) {
-        this.currentUser = parsed.user;
-        this.updateUIForSignedIn(parsed.user);
-      
-        // ADD THIS: Fetch and render chat history after session restore
-        this.fetchUserMessages().then(messages => {
-          this.renderSidebar(messages);
-        });
-      
-        console.log('User session restored');
-      }
-    } catch (error) {
-      console.log('Failed to restore user session:', error);
-      this.clearUserSession();
-    }
-  }
-
-
-  /**
-   * Clear user session from localStorage
-   */
-  clearUserSession() {
-    try {
-      localStorage.removeItem('google_auth_session');
-    } catch (error) {
-      this.log('Failed to clear user session:', error);
-    }
-
-    const todaySection = document.getElementById('chat-section-today');
-    const weekSection = document.getElementById('chat-section-week');
-    const monthSection = document.getElementById('chat-section-month');
-    if (todaySection) todaySection.innerHTML = '';
-    if (weekSection) weekSection.innerHTML = '';
-    if (monthSection) monthSection.innerHTML = '';
-
-    //clear current user
-    this.currentUser = null;
-  }
-
-  /**
-   * Handle profile settings click
-   */
-  handleProfileSettings() {
-    this.log('Profile settings clicked');
-    this.closeDropdown();
-    // Add your profile settings logic here
-    // Example: window.location.href = '/profile';
-  }
-
-  /**
-   * Handle preferences click
-   */
-  handlePreferences() {
-    this.log('Preferences clicked');
-    this.closeDropdown();
-    // Add your preferences logic here
-    // Example: window.location.href = '/preferences';
-  }
-
-  /**
-   * Handle alternative sign in click
-   */
-  handleAlternativeSignIn() {
-    this.log('Alternative sign in clicked');
-    this.closeDropdown();
-    // Add your alternative sign in logic here
-    // Example: window.location.href = '/signin';
-  }
-
-  /**
-   * Get current user
-   */
-  getCurrentUser() {
-    return this.currentUser;
-  }
-
-  /**
-   * Check if user is signed in
-   */
-  isSignedIn() {
-    return !!this.currentUser;
-  }
-
-  /**
-   * Enable One Tap
-   */
-  enableOneTap() {
-    this.config.autoPrompt = true;
-    this.setupOneTap();
-  }
-
-  /**
-   * Disable One Tap
-   */
-  disableOneTap() {
-    this.config.autoPrompt = false;
-    if (window.google && google.accounts && google.accounts.id) {
-      google.accounts.id.cancel();
-    }
-  }
-
-  /**
-   * Error handling
-   */
-  handleError(message, error) {
-    this.log(`Error: ${message}`, error);
-    this.config.onError({ message, error });
-  }
-
-  /**
-   * Logging utility
-   */
-  log(...args) {
-    if (this.config.debugMode) {
-      console.log('[GoogleAuthManager]', ...args);
-    }
-  }
-
-  /**
-   * Cleanup method
-   */
-  destroy() {
-    // Remove event listeners
-    // Clear user data
-    this.currentUser = null;
-    this.isInitialized = false;
-    
-    // Clear session
-    this.clearUserSession();
-    
-    this.log('GoogleAuthManager destroyed');
-  }
-}
-
-// Export for use
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = GoogleAuthManager;
-} else if (typeof window !== 'undefined') {
-  window.GoogleAuthManager = GoogleAuthManager;
-}
 
 // new chat button clears the existing input
 document.addEventListener('DOMContentLoaded', function() {
     const newChatBtn = document.getElementById('newChatBtn');
     const chatInput = document.getElementById('chatInput');
 
-    newChatBtn.addEventListener('click', function() {
-        chatInput.value = '';
-        // Optionally, focus the input after clearing
-        chatInput.focus();
-    });
+    if (newChatBtn && chatInput) {
+        newChatBtn.addEventListener('click', function() {
+            chatInput.value = '';
+            // Optionally, focus the input after clearing
+            chatInput.focus();
+        });
+    }
 });
-
 
 // Select all chat items
 const chatItems = document.querySelectorAll('.chat-item');
 
 chatItems.forEach(item => {
-  item.addEventListener('click', function() {
-    // Remove 'active' from currently active item
-    document.querySelector('.chat-item.active')?.classList.remove('active');
-    // Add 'active' to the clicked item
-    this.classList.add('active');
-  });
+    item.addEventListener('click', function() {
+        // Remove 'active' from currently active item
+        document.querySelector('.chat-item.active')?.classList.remove('active');
+        // Add 'active' to the clicked item
+        this.classList.add('active');
+    });
 });
 
+// Sidebar functionality - FIXED VERSION
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarToggle = document.getElementById('sidebarToggleBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const mainWrapper = document.getElementById('mainWrapper');
 
+    console.log('Sidebar elements:', { 
+        toggle: !!sidebarToggle, 
+        sidebar: !!sidebar, 
+        overlay: !!sidebarOverlay,
+        mainWrapper: !!mainWrapper
+    });
 
+    let sidebarOpen = false;
 
+    function showSidebar() {
+        console.log('Showing sidebar');
+        sidebarOpen = true;
+        
+        if (sidebar) {
+            sidebar.classList.remove('sidebar--hidden');
+            // Force visibility
+            sidebar.style.visibility = 'visible';
+            sidebar.style.opacity = '1';
+            sidebar.style.zIndex = '1000';
+        }
+        
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.remove('hidden');
+            sidebarOverlay.style.visibility = 'visible';
+            sidebarOverlay.style.opacity = '1';
+        }
+        
+        if (mainWrapper) {
+            mainWrapper.classList.add('sidebar-open');
+        }
+    }
 
-const sidebar = document.getElementById('sidebar');
-const sidebarOverlay = document.getElementById('sidebarOverlay');
-const headerLeft = document.getElementById('headerLeft');
-const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-const mainLayout = document.getElementById('mainWrapper');
+    function hideSidebar() {
+        console.log('Hiding sidebar');
+        sidebarOpen = false;
+        
+        if (sidebar) {
+            sidebar.classList.add('sidebar--hidden');
+        }
+        
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.add('hidden');
+            sidebarOverlay.style.visibility = 'hidden';
+            sidebarOverlay.style.opacity = '0';
+        }
+        
+        if (mainWrapper) {
+            mainWrapper.classList.remove('sidebar-open');
+        }
+    }
 
-// Set your default sidebar width here
-const SIDEBAR_WIDTH = '280px';
+    function toggleSidebar() {
+        console.log('Toggle sidebar - current state:', sidebarOpen ? 'open' : 'closed');
+        if (sidebarOpen) {
+            hideSidebar();
+        } else {
+            showSidebar();
+        }
+    }
 
-function showSidebar() {
-  sidebar.classList.remove('sidebar--hidden');
-  sidebarOverlay.classList.remove('hidden');
-  mainLayout.style.setProperty('--sidebar-width', SIDEBAR_WIDTH);
-  // Hide header-left when sidebar is shown
-  if (headerLeft) headerLeft.classList.add('header-left--hidden');
-}
+    // Event listeners
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSidebar();
+        });
+        console.log('Sidebar toggle listener added');
+    }
 
-function hideSidebar() {
-  sidebar.classList.add('sidebar--hidden');
-  sidebarOverlay.classList.add('hidden');
-  mainLayout.style.setProperty('--sidebar-width', '0px');
-  // Show header-left when sidebar is hidden
-  if (headerLeft) headerLeft.classList.remove('header-left--hidden');
-}
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', hideSidebar);
+    }
 
-
-// Toggle sidebar
-sidebarToggleBtn.addEventListener('click', () => {
-  if (sidebar.classList.contains('sidebar--hidden')) {
-    showSidebar();
-  } else {
+    // Initialize sidebar as hidden
     hideSidebar();
-  }
+
 });
 
-// Hide sidebar when clicking overlay
-sidebarOverlay.addEventListener('click', hideSidebar);
 
-// Hide sidebar on ESC key
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') hideSidebar();
+// Prevent form submission if wrapped in a form
+document.addEventListener('submit', (e) => {
+    e.preventDefault();
 });
-
-// Optionally: Hide sidebar by default on mobile
-if (window.innerWidth < 768) {
-  hideSidebar();
-}

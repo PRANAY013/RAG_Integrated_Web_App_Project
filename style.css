@@ -4141,7 +4141,7 @@ body.sidebar-open {
 }
 
 /* --- Icon Styling --- */
-.theme-icon, {
+.theme-icon {
   position: absolute;
   width: 24px;
   height: 24px;
@@ -4384,5 +4384,108 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.local-auth-section {
+    margin-top: 16px;
+}
+
+.auth-divider {
+    text-align: center;
+    margin: 16px 0;
+    position: relative;
+}
+
+.auth-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--copilot-border);
+}
+
+.auth-divider span {
+    background: var(--copilot-surface);
+    padding: 0 12px;
+    color: var(--copilot-text-secondary);
+    font-size: 14px;
+}
+
+.local-auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.local-auth-form h4 {
+    margin: 0 0 8px 0;
+    color: var(--copilot-text);
+    font-size: 16px;
+}
+
+.local-auth-form input {
+    padding: 12px;
+    border: 1px solid var(--copilot-border);
+    border-radius: 8px;
+    background: var(--copilot-surface);
+    color: var(--copilot-text);
+    font-size: 14px;
+}
+
+.local-auth-form input:focus {
+    outline: none;
+    border-color: var(--copilot-primary);
+}
+
+.local-auth-btn {
+    padding: 12px;
+    background: var(--copilot-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.local-auth-btn:hover {
+    background: var(--copilot-primary-hover);
+}
+
+.auth-toggle {
+    text-align: center;
+    font-size: 12px;
+    color: var(--copilot-text-secondary);
+    margin: 8px 0 0 0;
+}
+
+.auth-toggle a {
+    color: var(--copilot-primary);
+    text-decoration: none;
+}
+
+.auth-toggle a:hover {
+    text-decoration: underline;
+}
+
+
+/* Sidebar fixes */
+.sidebar {
+    transition: translateX(0) 0.3s ease !important;
+}
+
+.sidebar--hidden {
+    transform: translateX(-100%) !important;
+}
+
+.sidebar-overlay {
+    transition: opacity(100) 0.3s ease;
+}
+
+.sidebar-overlay.hidden {
+    display: none !important;
+    opacity: 0;
 }
 
