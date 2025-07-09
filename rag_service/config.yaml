@@ -1,0 +1,8 @@
+# if yaml is preffered over .env and userdata with its function 
+# dot env is used industry wide, is secure, and no wrong ways about
+api_keys :
+  groq : "" 
+  openai : ""
+settings :
+  model_name : ""
+  max_tokens : 1000

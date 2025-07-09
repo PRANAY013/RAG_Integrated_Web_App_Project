@@ -1,0 +1,30 @@
+# LlamaIndex Core Framework
+llama-index==0.12.47
+llama-index-core==0.12.47
+llama-index-llms-groq==0.3.2
+llama-index-embeddings-huggingface==0.4.11
+
+# API Management
+requests==2.32.3
+python-dotenv==1.1.1
+
+# Data Processing
+pandas==2.2.3
+numpy==1.26.4
+
+# HuggingFace Dependencies (automatically installed)
+transformers>=4.53.1
+sentence-transformers>=2.2.0
+huggingface-hub>=0.33.2
+tokenizers>=0.21.2
+
+# Compatibility Fix (if needed)
+tf-keras>=2.15.0
+
+# Optional: Ollama for Local Fallback
+# ollama==0.5.1
+
+# Optional: Additional Features
+# openai==1.93.2
+# tiktoken==0.9.0
+# tenacity==8.5.0
