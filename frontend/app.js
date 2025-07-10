@@ -745,6 +745,15 @@ class GoogleAuthManager {
                     authType: 'local'
                 };
 
+                // Store token in the correct localStorage key
+                localStorage.setItem('authToken', data.token);
+                
+                // Also store complete session data
+                localStorage.setItem('google_auth_session', JSON.stringify({
+                    token: data.token,
+                    user: user
+                }));
+
                 this.currentUser = user;
                 this.saveUserSession(user);
                 this.updateUIForSignedIn(user);
@@ -1587,13 +1596,48 @@ document.addEventListener('submit', (e) => {
 class RAGChatManager {
   constructor() {
     this.apiBase = 'http://localhost:3001/api';
-    this.token = localStorage.getItem('authToken');
+
+    this.token = this.getAuthToken();
     this.currentSessionId = this.generateSessionId();
+
     this.isProcessing = false;
     this.isChatActive = false;
+
     this.initializeChat();
     this.initializeNewChatButton();
   }
+
+  getAuthToken() {
+    // First try direct authToken
+    let token = localStorage.getItem('authToken');
+    
+    // If not found, try google_auth_session
+    if (!token) {
+      const sessionData = localStorage.getItem('google_auth_session');
+      if (sessionData) {
+        try {
+          const parsed = JSON.parse(sessionData);
+          token = parsed.token;
+        } catch (e) {
+          console.error('Failed to parse session data:', e);
+        }
+      }
+    }
+    
+    console.log('Retrieved auth token:', token ? 'Found' : 'Not found');
+    return token;
+  }
+
+  refreshToken() {
+    this.token = this.getAuthToken();
+    if (!this.token) {
+        console.warn('No auth token available - user may need to sign in again');
+        this.displayError('Please sign in to continue');
+        return false;
+    }
+    return true;
+  }
+
 
   generateSessionId() {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1658,6 +1702,7 @@ class RAGChatManager {
 
   async sendMessage(message) {
     try {
+      if (!this.refreshToken()) {return;}
       console.log('🚀 Sending message:', message);
       
       // Show chat interface and hide welcome section
@@ -1832,18 +1877,352 @@ class RAGChatManager {
     this.scrollToBottom();
   }
 
+formatAIResponse(text) {
+  // Step 1: Clean and normalize the input text
+  let formattedText = text.trim();
+  
+  // Step 2: Preserve markdown formatting BEFORE cleaning HTML
+  formattedText = this.preserveMarkdownFormatting(formattedText);
+  
+  // Step 3: Remove any existing malformed HTML (but preserve our markers)
+  formattedText = formattedText.replace(/<[^>]*>/g, '');
+  
+  // Step 4: Fix broken formatting patterns
+  formattedText = this.fixBrokenFormatting(formattedText);
+  
+  // Step 5: Apply proper formatting
+  formattedText = this.applyProperFormatting(formattedText);
+  
+  // Step 6: Convert markdown to HTML
+  formattedText = this.convertMarkdownToHTML(formattedText);
+  
+  // Step 7: Clean up and finalize
+  formattedText = this.finalCleanup(formattedText);
+  
+  return formattedText;
+}
+
+// NEW METHOD: Preserve markdown before processing
+preserveMarkdownFormatting(text) {
+  // Use unique markers to preserve markdown during processing
+  text = text.replace(/\*\*([^*]+)\*\*/g, '{{BOLD_START}}$1{{BOLD_END}}');
+  text = text.replace(/\*([^*]+)\*/g, '{{ITALIC_START}}$1{{ITALIC_END}}');
+  
+  return text;
+}
+
+// NEW METHOD: Convert preserved markdown to HTML
+convertMarkdownToHTML(text) {
+  // Convert our preserved markers to HTML
+  text = text.replace(/\{\{BOLD_START\}\}([^{]+)\{\{BOLD_END\}\}/g, '<strong>$1</strong>');
+  text = text.replace(/\{\{ITALIC_START\}\}([^{]+)\{\{ITALIC_END\}\}/g, '<em>$1</em>');
+  
+  return text;
+}
+
+
+fixBrokenFormatting(text) {
+  // Fix broken numbered lists like "1. * • Start with"
+  text = text.replace(/(\d+)\.\s*\*\s*•\s*([^*•]+)\s*\*\s*•\s*:\s*/g, '$1. **$2**: ');
+  
+  // Fix broken bullet points like "• item">1."
+  text = text.replace(/•\s*item">\s*(\d+)\.\s*/g, '$1. ');
+  
+  // Fix broken asterisk patterns
+  text = text.replace(/\*\s*•\s*([^*•]+)\s*\*\s*•\s*/g, '**$1**');
+  
+  // Fix broken line breaks in sentences
+  text = text.replace(/([a-z])\.\s*([A-Z])/g, '$1. $2');
+  
+  // Fix "The document" repetitions
+  text = text.replace(/\s*The document\s*/g, ' ');
+  
+  return text;
+}
+
+applyProperFormatting(text) {
+  // Split into logical sections, including markdown headers
+  const sections = text.split(/(?=\d+\.\s|\n\n|Here's|Overall|Some of the key points|\*\*[IVX]+\.\s|\*\*[A-Z][^*]*\*\*)/);
+  let result = '';
+  
+  sections.forEach(section => {
+    const trimmed = section.trim();
+    if (!trimmed) return;
+    
+    if (this.isNumberedList(trimmed)) {
+      result += this.formatNumberedList(trimmed);
+    } else if (this.isBulletList(trimmed)) {
+      result += this.formatBulletList(trimmed);
+    } else if (this.isHeader(trimmed)) {
+      result += this.formatHeader(trimmed);
+    } else {
+      result += this.formatParagraph(trimmed);
+    }
+  });
+  
+  return result;
+}
+
+isNumberedList(text) {
+  return /^\d+\.\s/.test(text) || text.includes('1.') || text.includes('2.');
+}
+
+isBulletList(text) {
+  return /^[•·-]\s/.test(text) || text.includes('•') || text.includes('key points');
+}
+
+isHeader(text) {
+  return text.includes('Here\'s') || 
+         text.includes('Overall') || 
+         text.includes('Some of the key') ||
+         /\*\*[IVX]+\.\s/.test(text) || // Roman numerals like **I.**, **II.**
+         /\*\*[A-Z][^*]*\*\*/.test(text); // Any **CAPITALIZED TEXT**
+}
+
+
+formatNumberedList(text) {
+  // Extract all numbered items
+  const items = text.split(/(?=\d+\.\s)/).filter(item => item.trim());
+  let result = '<div class="numbered-list">';
+  
+  items.forEach(item => {
+    const match = item.match(/^(\d+)\.\s*(.+)$/s);
+    if (match) {
+      const number = match[1];
+      const content = match[2].trim();
+      result += `
+        <div class="numbered-item">
+          <span class="number">${number}.</span>
+          <span class="content">${this.formatContent(content)}</span>
+        </div>
+      `;
+    }
+  });
+  
+  result += '</div>';
+  return result;
+}
+
+formatBulletList(text) {
+  // Handle bullet points
+  const lines = text.split('\n').filter(line => line.trim());
+  let result = '<div class="bullet-list">';
+  
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+      const content = trimmed.replace(/^[•-]\s*/, '');
+      result += `
+        <div class="bullet-item">
+          <span class="bullet">•</span>
+          <span class="content">${this.formatContent(content)}</span>
+        </div>
+      `;
+    } else if (trimmed) {
+      result += `<p>${this.formatContent(trimmed)}</p>`;
+    }
+  });
+  
+  result += '</div>';
+  return result;
+}
+
+formatHeader(text) {
+  // Handle markdown headers like **I. Introduction**
+  if (/\*\*([IVX]+\.\s[^*]+)\*\*/.test(text)) {
+    const match = text.match(/\*\*([IVX]+\.\s[^*]+)\*\*/);
+    if (match) {
+      return `<h3 class="response-header">${match[1]}</h3>`;
+    }
+  }
+  
+  // Handle other markdown headers
+  if (/\*\*([^*]+)\*\*/.test(text)) {
+    const match = text.match(/\*\*([^*]+)\*\*/);
+    if (match) {
+      return `<h4 class="response-subheader">${match[1]}</h4>`;
+    }
+  }
+  
+  // Existing logic for other headers
+  const cleanText = text.replace(/^(Here's|Overall|Some of the key points)/, '').trim();
+  if (text.includes('Here\'s')) {
+    return `<h4 class="response-header">Key Points:</h4>`;
+  } else if (text.includes('Overall')) {
+    return `<h4 class="response-subheader">Summary</h4><p>${cleanText}</p>`;
+  } else {
+    return `<h4 class="response-subheader">Key Highlights</h4>`;
+  }
+}
+
+
+formatParagraph(text) {
+  // Split long paragraphs into sentences
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  let result = '<p>';
+  
+  sentences.forEach((sentence, index) => {
+    const trimmed = sentence.trim();
+    if (trimmed) {
+      result += this.formatContent(trimmed);
+      if (index < sentences.length - 1) {
+        result += ' ';
+      }
+    }
+  });
+  
+  result += '</p>';
+  return result;
+}
+
+formatContent(content) {
+  // Just clean up extra spaces - markdown conversion happens elsewhere
+  content = content.replace(/\s+/g, ' ').trim();
+  return content;
+}
+
+
+finalCleanup(text) {
+  // Remove empty paragraphs
+  text = text.replace(/<p>\s*<\/p>/g, '');
+  
+  // Fix nested HTML issues
+  text = text.replace(/<p>\s*<h4/g, '<h4');
+  text = text.replace(/<\/h4>\s*<\/p>/g, '</h4>');
+  text = text.replace(/<p>\s*<div/g, '<div');
+  text = text.replace(/<\/div>\s*<\/p>/g, '</div>');
+  
+  // Ensure proper spacing
+  text = text.replace(/(<\/div>)(<div)/g, '$1\n$2');
+  text = text.replace(/(<\/h4>)(<p)/g, '$1\n$2');
+  text = text.replace(/(<\/p>)(<h4)/g, '$1\n$2');
+  
+  return text.trim();
+}
+
+  formatNumberedLists(text) {
+    // Match numbered lists and keep them together
+    // This regex finds patterns like "1. Text" or "1.\n\nText" and normalizes them
+    text = text.replace(/(\d+)\.\s*\n*\s*([A-Z][^.]*?)(?=\s*\d+\.|$|\n\n[A-Z])/g, 
+      '<div class="numbered-item"><span class="number">$1.</span> <span class="content">$2</span></div>');
+    
+    // Handle numbered lists that are part of longer sentences
+    text = text.replace(/(\d+)\.\s*([A-Z][^.]*?\.)/g, 
+      '<div class="numbered-item"><span class="number">$1.</span> <span class="content">$2</span></div>');
+    
+    return text;
+  }
+
+  formatBulletPoints(text) {
+    // Handle various bullet point formats
+    text = text.replace(/[-•*]\s*([^-•*\n]+)/g, 
+      '<div class="bullet-item"><span class="bullet">•</span> <span class="content">$1</span></div>');
+    
+    return text;
+  }
+
+  formatSectionHeaders(text) {
+    // Detect section headers (sentences ending with colons)
+    text = text.replace(/^([A-Z][^:]*:)\s*$/gm, '<h4 class="response-header">$1</h4>');
+    
+    // Handle topic transitions
+    text = text.replace(/(The document|The paper|Moving on to|Additionally|Furthermore|Moreover|In conclusion|Overall|Main points)/g, 
+      '<h4 class="response-subheader">$1</h4>');
+    
+    return text;
+  }
+
+  formatParagraphs(text) {
+    // Split text into sentences for better paragraph handling
+    const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z])/);
+    let result = '';
+    let currentParagraph = '';
+    
+    sentences.forEach((sentence, index) => {
+      // Skip if sentence is already formatted as HTML
+      if (sentence.includes('<div class=') || sentence.includes('<h4 class=')) {
+        if (currentParagraph.trim()) {
+          result += `<p>${currentParagraph.trim()}</p>`;
+          currentParagraph = '';
+        }
+        result += sentence;
+        return;
+      }
+      
+      // Add sentence to current paragraph
+      currentParagraph += sentence + ' ';
+      
+      // Create new paragraph after certain patterns
+      if (this.shouldBreakParagraph(sentence, sentences[index + 1])) {
+        result += `<p>${currentParagraph.trim()}</p>`;
+        currentParagraph = '';
+      }
+    });
+    
+    // Add remaining content as final paragraph
+    if (currentParagraph.trim()) {
+      result += `<p>${currentParagraph.trim()}</p>`;
+    }
+    
+    return result;
+  }
+
+  shouldBreakParagraph(currentSentence, nextSentence) {
+    if (!nextSentence) return true;
+    
+    // Break after sentences that introduce new topics
+    const topicIntroducers = [
+      'The document', 'The paper', 'Moving on', 'Additionally', 
+      'Furthermore', 'Moreover', 'In conclusion', 'Overall'
+    ];
+    
+    return topicIntroducers.some(phrase => 
+      currentSentence.includes(phrase) || nextSentence.includes(phrase)
+    );
+  }
+
+  cleanupFormatting(text) {
+    // Remove empty paragraphs
+    text = text.replace(/<p>\s*<\/p>/g, '');
+    
+    // Fix nested HTML issues
+    text = text.replace(/<p>\s*<h4/g, '<h4');
+    text = text.replace(/<\/h4>\s*<\/p>/g, '</h4>');
+    text = text.replace(/<p>\s*<div/g, '<div');
+    text = text.replace(/<\/div>\s*<\/p>/g, '</div>');
+    
+    // Ensure proper spacing between elements
+    text = text.replace(/(<\/div>)(<div)/g, '$1\n$2');
+    text = text.replace(/(<\/h4>)(<p)/g, '$1\n$2');
+    
+    return text.trim();
+  }
+
   displayAIResponse(response) {
     const chatContainer = this.getChatContainer();
     if (!chatContainer) return;
+
+    // Enhanced formatting for AI responses
+    const formattedMessage = this.formatAIResponse(response.message);
+    const formattedSources = this.formatSources(response.sources);
 
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message ai-message';
     messageDiv.innerHTML = `
       <div class="message-content">
-        <div class="message-text">${this.escapeHtml(response.message)}</div>
+        <div class="message-text">${formattedMessage}</div>
         ${response.sources && response.sources.length > 0 ? 
           `<div class="message-sources">
-            <strong>Sources:</strong> ${response.sources.join(', ')}
+            <div class="sources-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+              </svg>
+              <span>Sources</span>
+            </div>
+            <div class="sources-list">
+              ${formattedSources}
+            </div>
           </div>` : ''}
         <div class="message-time">
           ${new Date().toLocaleTimeString()} 
@@ -1854,6 +2233,133 @@ class RAGChatManager {
     
     chatContainer.appendChild(messageDiv);
     this.scrollToBottom();
+  }
+
+  formatSources(sources) {
+    if (!sources || sources.length === 0) return '';
+    
+    return sources.map((source, index) => {
+      try {
+        const sourceData = typeof source === 'string' ? JSON.parse(source) : source;
+        return `
+          <div class="source-item">
+            <div class="source-number">[${index + 1}]</div>
+            <div class="source-details">
+              <div class="source-filename">${sourceData.file_name || 'Document'}</div>
+              <div class="source-meta">Page ${sourceData.page_label || 'N/A'} • ${this.formatFileSize(sourceData.file_size)}</div>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        return `
+          <div class="source-item">
+            <div class="source-number">[${index + 1}]</div>
+            <div class="source-details">
+              <div class="source-filename">Document Reference</div>
+              <div class="source-meta">Source ${index + 1}</div>
+            </div>
+          </div>
+        `;
+      }
+    }).join('');
+  }
+
+  formatFileSize(bytes) {
+    if (!bytes) return '';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  // Enhanced method to handle different response types
+  detectResponseType(text) {
+    // Check for numbered lists
+    if (/\d+\.\s/.test(text)) return 'numbered-list';
+    
+    // Check for bullet points
+    if (/[-•*]\s/.test(text)) return 'bullet-list';
+    
+    // Check for headers (colons at end of lines)
+    if (/^[A-Z][^:]*:$/m.test(text)) return 'structured';
+    
+    // Default to paragraph
+    return 'paragraph';
+  }
+
+  // Alternative formatting method for different content types
+  formatByType(text) {
+    const type = this.detectResponseType(text);
+    
+    switch (type) {
+      case 'numbered-list':
+        return this.formatNumberedContent(text);
+      case 'bullet-list':
+        return this.formatBulletContent(text);
+      case 'structured':
+        return this.formatStructuredContent(text);
+      default:
+        return this.formatParagraphContent(text);
+    }
+  }
+
+  formatNumberedContent(text) {
+    // Specialized formatting for numbered content
+    const lines = text.split('\n');
+    let result = '';
+    let inList = false;
+    
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (/^\d+\./.test(trimmed)) {
+        if (!inList) {
+          result += '<div class="numbered-list">';
+          inList = true;
+        }
+        const match = trimmed.match(/^(\d+)\.\s*(.+)$/);
+        if (match) {
+          result += `<div class="numbered-item">
+            <span class="number">${match[1]}.</span>
+            <span class="content">${match[2]}</span>
+          </div>`;
+        }
+      } else if (trimmed && inList) {
+        // Continue previous item
+        result = result.replace(/<\/span><\/div>$/, ` ${trimmed}</span></div>`);
+      } else if (trimmed) {
+        if (inList) {
+          result += '</div>';
+          inList = false;
+        }
+        result += `<p>${trimmed}</p>`;
+      }
+    });
+    
+    if (inList) result += '</div>';
+    return result;
+  }
+
+  formatBulletContent(text) {
+    // Similar approach for bullet points
+    return text.replace(/[-•*]\s*([^\n]+)/g, 
+      '<div class="bullet-item"><span class="bullet">•</span> <span class="content">$1</span></div>');
+  }
+
+  formatStructuredContent(text) {
+    // Handle structured content with headers
+    return text.replace(/^([A-Z][^:]*:)\s*$/gm, '<h4 class="response-header">$1</h4>')
+               .replace(/\n\n/g, '</p><p>')
+               .replace(/^/, '<p>')
+               .replace(/$/, '</p>')
+               .replace(/<p><h4/g, '<h4')
+               .replace(/<\/h4><\/p>/g, '</h4>');
+  }
+
+  formatParagraphContent(text) {
+    // Simple paragraph formatting
+    return text.split('\n\n')
+               .filter(para => para.trim())
+               .map(para => `<p>${para.trim()}</p>`)
+               .join('');
   }
 
   showTypingIndicator() {

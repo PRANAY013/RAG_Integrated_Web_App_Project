@@ -226,7 +226,7 @@ async def process_query(request: QueryRequest):
         # Process query through RAG
         response = query_engine.query(request.query)
         processing_time = time.time() - start_time
-        
+
         return QueryResponse(
             response=str(response),
             sources=[str(node.node.metadata) for node in response.source_nodes],
