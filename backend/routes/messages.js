@@ -148,80 +148,104 @@ router.get('/stats', authenticateToken, async (req, res) => {
     }
 });
 
-// RAG Query Endpoint
+// RAG Query Endpoint - Enhanced error handling
 router.post('/rag/query', authenticateToken, async (req, res) => {
-  try {
-    const { message, sessionId } = req.body;
-    const userId = req.user.userId;
+    try {
+        const { message, sessionId } = req.body;
+        const userId = req.user.userId;
 
-    // Get user details
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+        // Get user details
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        console.log(`🔍 Processing RAG query for user ${user.email}: ${message.substring(0, 50)}...`);
+
+        // Forward query to RAG service with enhanced error handling
+        const ragResponse = await axios.post('http://localhost:8000/query', {
+            query: message,
+            user_id: userId,
+            session_id: sessionId
+        }, {
+            timeout: 60000, // Increased to 60 seconds
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const ragResult = ragResponse.data;
+        console.log(`✅ RAG query successful, processing time: ${ragResult.processing_time?.toFixed(2)}s`);
+
+        // Save both user query and AI response
+        const userMessage = new Message({
+            userId,
+            userEmail: user.email,
+            userName: user.name,
+            message: message.trim(),
+            sessionId,
+            metadata: {
+                userAgent: req.headers['user-agent'],
+                ipAddress: req.ip,
+                messageType: 'user_query'
+            }
+        });
+
+        const aiMessage = new Message({
+            userId,
+            userEmail: user.email,
+            userName: 'RAG Assistant',
+            message: ragResult.response,
+            sessionId,
+            metadata: {
+                userAgent: req.headers['user-agent'],
+                ipAddress: req.ip,
+                messageType: 'ai_response',
+                modelUsed: ragResult.model_used,
+                processingTime: ragResult.processing_time,
+                sources: ragResult.sources
+            }
+        });
+
+        await Promise.all([userMessage.save(), aiMessage.save()]);
+
+        res.json({
+            success: true,
+            userMessage,
+            aiResponse: {
+                message: ragResult.response,
+                sources: ragResult.sources,
+                processingTime: ragResult.processing_time
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ RAG query error details:', error.message);
+        
+        if (error.code === 'ECONNREFUSED') {
+            console.error('❌ Cannot connect to RAG service - is it running on port 8000?');
+            return res.status(503).json({
+                success: false,
+                message: 'RAG service unavailable'
+            });
+        }
+        
+        if (error.code === 'ETIMEDOUT') {
+            console.error('❌ RAG service timeout');
+            return res.status(504).json({
+                success: false,
+                message: 'RAG service timeout'
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            message: 'RAG query failed',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
-
-    // Forward query to RAG service
-    const ragResponse = await axios.post('http://localhost:8000/query', {
-      query: message,
-      user_id: userId,
-      session_id: sessionId
-    }, {
-      timeout: 30000 // 30 second timeout
-    });
-
-    const ragResult = ragResponse.data;
-
-    // Save both user query and AI response
-    const userMessage = new Message({
-      userId,
-      userEmail: user.email,
-      userName: user.name,
-      message: message.trim(),
-      sessionId,
-      metadata: {
-        userAgent: req.headers['user-agent'],
-        ipAddress: req.ip,
-        messageType: 'user_query'
-      }
-    });
-
-    const aiMessage = new Message({
-      userId,
-      userEmail: user.email,
-      userName: 'RAG Assistant',
-      message: ragResult.response,
-      sessionId,
-      metadata: {
-        userAgent: req.headers['user-agent'],
-        ipAddress: req.ip,
-        messageType: 'ai_response',
-        modelUsed: ragResult.model_used,
-        processingTime: ragResult.processing_time,
-        sources: ragResult.sources
-      }
-    });
-
-    await Promise.all([userMessage.save(), aiMessage.save()]);
-
-    res.json({
-      success: true,
-      userMessage,
-      aiResponse: {
-        message: ragResult.response,
-        sources: ragResult.sources,
-        processingTime: ragResult.processing_time
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ RAG query error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'RAG query failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
 });
+
 
 // Get conversation history with AI responses
 router.get('/conversation/:sessionId', authenticateToken, async (req, res) => {

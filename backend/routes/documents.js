@@ -80,23 +80,53 @@ router.post('/upload', authenticateToken, upload.array('documents', 10), async (
             console.log(`✅ File processed: ${file.originalname} -> ${file.filename}`);
         }
 
-        // Trigger RAG service reindexing
-        try {
-            console.log('🔄 Triggering RAG service reindexing...');
-            await axios.post('http://localhost:8000/reindex', {
-                user_id: userId,
-                new_files: processedFiles.map(f => f.fileName)
-            });
-            console.log('✅ RAG reindexing triggered successfully');
-        } catch (reindexError) {
-            console.error('⚠️ RAG reindexing failed:', reindexError.message);
-            // Don't fail the upload if reindexing fails
+        // ENHANCED: Wait a moment for file system to settle
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Trigger RAG service reindexing with retry logic
+        let reindexSuccess = false;
+        let reindexAttempts = 0;
+        const maxRetries = 3;
+
+        while (!reindexSuccess && reindexAttempts < maxRetries) {
+            try {
+                reindexAttempts++;
+                console.log(`🔄 Triggering RAG reindexing (attempt ${reindexAttempts}/${maxRetries})...`);
+                
+                const reindexResponse = await axios.post('http://localhost:8000/reindex', {
+                    user_id: userId,
+                    new_files: processedFiles.map(f => f.fileName),
+                    trigger_source: 'upload'
+                }, {
+                    timeout: 10000 // 10 second timeout
+                });
+
+                if (reindexResponse.data.success) {
+                    console.log('✅ RAG reindexing completed successfully');
+                    console.log(`📊 Indexed ${reindexResponse.data.documents_count} documents in ${reindexResponse.data.processing_time.toFixed(2)}s`);
+                    reindexSuccess = true;
+                } else {
+                    throw new Error(reindexResponse.data.message || 'Reindex failed');
+                }
+
+            } catch (reindexError) {
+                console.error(`⚠️ RAG reindexing attempt ${reindexAttempts} failed:`, reindexError.message);
+                
+                if (reindexAttempts < maxRetries) {
+                    // Wait before retry with exponential backoff
+                    await new Promise(resolve => setTimeout(resolve, 1000 * reindexAttempts));
+                } else {
+                    console.error('❌ All reindexing attempts failed - documents uploaded but not indexed');
+                }
+            }
         }
 
         res.json({
             success: true,
             message: `${files.length} document(s) uploaded successfully`,
-            files: processedFiles
+            files: processedFiles,
+            reindexed: reindexSuccess,
+            reindex_attempts: reindexAttempts
         });
 
     } catch (error) {
@@ -166,5 +196,34 @@ router.post('/reindex', authenticateToken, async (req, res) => {
         });
     }
 });
+
+// Add to documents.js
+router.get('/rag-status', authenticateToken, async (req, res) => {
+    try {
+        const healthResponse = await axios.get('http://localhost:8000/health', {
+            timeout: 5000
+        });
+        
+        const statusResponse = await axios.get('http://localhost:8000/documents/status', {
+            timeout: 5000
+        });
+
+        res.json({
+            success: true,
+            rag_service: {
+                health: healthResponse.data,
+                documents: statusResponse.data
+            }
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'RAG service unavailable',
+            error: error.message
+        });
+    }
+});
+
 
 module.exports = router;
