@@ -3,6 +3,7 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
+const axios = require('axios');
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
@@ -164,5 +165,106 @@ router.get('/stats', authenticateToken, async (req, res) => {
         });
     }
 });
+
+// RAG Query Endpoint
+router.post('/rag/query', authenticateToken, async (req, res) => {
+  try {
+    const { message, sessionId } = req.body;
+    const userId = req.user.userId;
+
+    // Get user details
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Forward query to RAG service
+    const ragResponse = await axios.post('http://localhost:8000/query', {
+      query: message,
+      user_id: userId,
+      session_id: sessionId
+    }, {
+      timeout: 30000 // 30 second timeout
+    });
+
+    const ragResult = ragResponse.data;
+
+    // Save both user query and AI response
+    const userMessage = new Message({
+      userId,
+      userEmail: user.email,
+      userName: user.name,
+      message: message.trim(),
+      sessionId,
+      metadata: {
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+        messageType: 'user_query'
+      }
+    });
+
+    const aiMessage = new Message({
+      userId,
+      userEmail: user.email,
+      userName: 'RAG Assistant',
+      message: ragResult.response,
+      sessionId,
+      metadata: {
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+        messageType: 'ai_response',
+        modelUsed: ragResult.model_used,
+        processingTime: ragResult.processing_time,
+        sources: ragResult.sources
+      }
+    });
+
+    await Promise.all([userMessage.save(), aiMessage.save()]);
+
+    res.json({
+      success: true,
+      userMessage,
+      aiResponse: {
+        message: ragResult.response,
+        sources: ragResult.sources,
+        processingTime: ragResult.processing_time
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ RAG query error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'RAG query failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Get conversation history with AI responses
+router.get('/conversation/:sessionId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const sessionId = req.params.sessionId;
+
+    const messages = await Message.find({ 
+      userId, 
+      sessionId 
+    }).sort({ timestamp: 1 });
+
+    res.json({
+      success: true,
+      messages,
+      count: messages.length
+    });
+  } catch (error) {
+    console.error('❌ Conversation fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch conversation'
+    });
+  }
+});
+
 
 module.exports = router;

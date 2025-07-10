@@ -2,7 +2,6 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const router = express.Router();
-const axios = require('axios');
 
 // Local authentication endpoint
 router.post('/login', async (req, res) => {
