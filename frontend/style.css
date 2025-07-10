@@ -4489,3 +4489,257 @@ body {
     opacity: 0;
 }
 
+
+
+/* Chat container styles */
+.chat-container {
+  width: 100%;
+  padding: var(--space-16) var(--space-24);
+  margin-bottom: 0px;
+  transition: all 0.3s ease;
+  min-height: 400px;
+  max-height: calc(100vh - 200px); /* Fixed maximum height */
+  height: calc(100vh - 200px); /* Fixed height based on viewport */
+  display: none;
+  position: relative;
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+
+  mask: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 40px,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 40px,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+
+}
+
+/* When chat container is active */
+.chat-container.active {
+  display: block;
+  animation: chatFadeIn 0.3s ease-in-out;
+}
+
+/* Message bubble styles */
+.message {
+  margin-bottom: var(--space-16);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-lg);
+  max-width: 65%; /* Reduced for better readability on wide screens */
+  animation: messageSlideIn 0.3s ease-in-out;
+  flex-shrink: 0; 
+}
+
+.user-message {
+  background: linear-gradient(to right, #f32170, #ff6b08, #eedd44);
+  color: white;
+  margin-left : auto;
+  text-align: right;
+}
+
+.ai-message {
+  background: linear-gradient(to right, #eedd44, #ff6b08,  #f32170);
+  margin-right: auto;
+  box-shadow: var(--copilot-shadow);
+}
+
+.error-message {
+  background: rgba(var(--color-error-rgb), 0.1);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+  margin-right: auto;
+}
+
+/* Message content structure */
+.message-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.message-text {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  word-wrap: break-word;
+}
+
+.message-time {
+  font-size: var(--font-size-xs);
+  opacity: 0.7;
+  font-weight: var(--font-weight-normal);
+}
+
+.message-sources {
+  font-size: var(--font-size-sm);
+  opacity: 0.8;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--copilot-border);
+}
+
+/* Typing indicator */
+.typing-indicator .typing-dots {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.typing-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--copilot-text-secondary);
+  animation: typingDot 1.4s ease-in-out infinite;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Chat layout state management */
+.main-content {
+  transition: all 0.3s ease;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-32) var(--space-16);
+  margin-bottom: 200px;
+}
+
+/* When chat is active, change layout completely */
+.main-content.chat-active {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: var(--space-16);
+  margin-bottom: 0;
+}
+
+/* Hide welcome section when chat is active */
+.main-content.chat-active .welcome-section {
+  display: none !important;
+}
+
+.main-content.chat-active .content-container {
+  max-width: none;
+  width: 100%;
+  text-align: left;
+  display: none; /* Hide the entire content container */
+}
+
+/* Welcome section smooth hide animation */
+.welcome-section {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.welcome-section.hidden {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none;
+}
+
+/* Hide suggestion cards when chat is active */
+.main-content.chat-active .suggestions-grid {
+  display: none !important;
+}
+
+/* Animations */
+@keyframes typingDot {
+  0%, 60%, 100% { 
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  30% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chatFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 991px) {
+  .chat-container {
+    width: 100%;
+    padding: var(--space-12);
+  }
+  
+  .message {
+    max-width: 65%;
+  }
+}
+
+@media (min-width: 1200px) {
+  .chat-container {
+    padding-left: var(--space-24);
+    padding-right: var(--space-24);
+  }
+}
+
+@media (min-width: 1400px) {
+  .chat-container {
+    padding-left: var(--space-32);
+    padding-right: var(--space-32);
+  }
+  
+  .message {
+    max-width: 65%; /* Even smaller bubbles on very large screens */
+  }
+}
+
+@media (min-width: 1920px) {
+  .chat-container {
+    padding-left: 4rem;
+    padding-right: 4rem;
+  }
+}
+
+/* Dark mode specific adjustments */
+[data-theme="dark"] .ai-message {
+  background: var(--copilot-surface);
+  border-color: var(--copilot-border);
+}
+
+[data-theme="dark"] .message-sources {
+  border-top-color: var(--copilot-border);
+}
+
+

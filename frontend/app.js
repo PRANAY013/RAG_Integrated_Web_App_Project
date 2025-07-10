@@ -1515,13 +1515,14 @@ document.addEventListener('submit', (e) => {
 });
 
 
-
-// RAG Chat Integration --- ( under review ... )
+// Enhanced RAG Chat Manager 
 class RAGChatManager {
   constructor() {
     this.apiBase = 'http://localhost:3001/api';
     this.token = localStorage.getItem('authToken');
     this.currentSessionId = this.generateSessionId();
+    this.isProcessing = false;
+    this.isChatActive = false;
     this.initializeChat();
   }
 
@@ -1529,10 +1530,58 @@ class RAGChatManager {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  async sendMessage(message) {
-    if (!message.trim()) return;
+  initializeChat() {
+    // Connect to your existing chat input and send button
+    const chatInput = document.querySelector('.chat-input');
+    const sendButton = document.querySelector('.send-button');
+    
+    if (chatInput && sendButton) {
+      // Handle Enter key
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !this.isProcessing) {
+          e.preventDefault();
+          this.handleSendMessage();
+        }
+      });
 
+      // Handle send button click
+      sendButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!this.isProcessing) {
+          this.handleSendMessage();
+        }
+      });
+
+      console.log('✅ RAG Chat Manager initialized');
+    } else {
+      console.error('❌ Chat input or send button not found');
+    }
+  }
+
+  async handleSendMessage() {
+    const chatInput = document.querySelector('.chat-input');
+    if (!chatInput || this.isProcessing) return;
+
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    this.isProcessing = true;
+    chatInput.value = '';
+    
     try {
+      await this.sendMessage(message);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  async sendMessage(message) {
+    try {
+      console.log('🚀 Sending message:', message);
+      
+      // Show chat interface and hide welcome section
+      this.activateChatMode();
+      
       // Show user message immediately
       this.displayUserMessage(message);
       this.showTypingIndicator();
@@ -1554,19 +1603,99 @@ class RAGChatManager {
 
       if (result.success) {
         this.displayAIResponse(result.aiResponse);
-        this.updateSidebar(); // Refresh sidebar with new conversation
+        console.log('✅ Message sent and response received');
       } else {
-        this.displayError('Failed to get response');
+        this.displayError('Failed to get response: ' + result.message);
+        console.error('❌ Backend error:', result);
       }
     } catch (error) {
       this.hideTypingIndicator();
-      this.displayError('Connection error');
-      console.error('RAG query error:', error);
+      this.displayError('Connection error - check if backend is running');
+      console.error('❌ Frontend error:', error);
     }
   }
 
-  displayUserMessage(message) {
+  activateChatMode() {
+    if (!this.isChatActive) {
+      this.isChatActive = true;
+      
+      // Get all necessary elements
+      const welcomeSection = document.querySelector('.welcome-section');
+      const mainContent = document.querySelector('.main-content');
+      const chatContainer = document.getElementById('chat-container');
+      const suggestionsGrid = document.querySelector('.suggestions-grid');
+      
+      console.log('🎯 Activating chat mode...');
+      
+      // Step 1: Hide welcome section with animation
+      if (welcomeSection) {
+        welcomeSection.classList.add('hidden');
+      }
+      
+      // Step 2: Hide suggestions grid
+      if (suggestionsGrid) {
+        suggestionsGrid.style.display = 'none';
+      }
+      
+      // Step 3: Activate chat layout (with slight delay for smooth transition)
+      setTimeout(() => {
+        if (mainContent) {
+          mainContent.classList.add('chat-active');
+        }
+        
+        if (chatContainer) {
+          chatContainer.classList.add('active');
+        }
+        
+        console.log('✅ Chat mode activated successfully');
+      }, 150); // Small delay for smooth transition
+    }
+  }
+
+  startNewChat() {
+    console.log('🔄 Starting new chat...');
+    
+    // Reset chat state
+    this.isChatActive = false;
+    this.currentSessionId = this.generateSessionId();
+    
+    // Get all necessary elements
+    const welcomeSection = document.querySelector('.welcome-section');
+    const mainContent = document.querySelector('.main-content');
     const chatContainer = document.getElementById('chat-container');
+    const suggestionsGrid = document.querySelector('.suggestions-grid');
+    
+    // Step 1: Hide chat container
+    if (chatContainer) {
+      chatContainer.classList.remove('active');
+      // Clear chat content after animation
+      setTimeout(() => {
+        chatContainer.innerHTML = '';
+      }, 300);
+    }
+    
+    // Step 2: Remove chat-active class from main content
+    if (mainContent) {
+      mainContent.classList.remove('chat-active');
+    }
+    
+    // Step 3: Show welcome section and suggestions (with delay)
+    setTimeout(() => {
+      if (welcomeSection) {
+        welcomeSection.classList.remove('hidden');
+      }
+      
+      if (suggestionsGrid) {
+        suggestionsGrid.style.display = '';
+      }
+      
+      console.log('✅ New chat started - welcome section restored');
+    }, 200);
+  }
+
+
+  displayUserMessage(message) {
+    const chatContainer = this.getChatContainer();
     if (!chatContainer) return;
 
     const messageDiv = document.createElement('div');
@@ -1583,7 +1712,7 @@ class RAGChatManager {
   }
 
   displayAIResponse(response) {
-    const chatContainer = document.getElementById('chat-container');
+    const chatContainer = this.getChatContainer();
     if (!chatContainer) return;
 
     const messageDiv = document.createElement('div');
@@ -1607,7 +1736,7 @@ class RAGChatManager {
   }
 
   showTypingIndicator() {
-    const chatContainer = document.getElementById('chat-container');
+    const chatContainer = this.getChatContainer();
     if (!chatContainer) return;
 
     const typingDiv = document.createElement('div');
@@ -1632,6 +1761,43 @@ class RAGChatManager {
     }
   }
 
+  displayError(error) {
+    const chatContainer = this.getChatContainer();
+    if (!chatContainer) return;
+
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'message error-message';
+    errorDiv.innerHTML = `
+      <div class="message-content">
+        <div class="message-text">❌ ${this.escapeHtml(error)}</div>
+        <div class="message-time">${new Date().toLocaleTimeString()}</div>
+      </div>
+    `;
+    
+    chatContainer.appendChild(errorDiv);
+    this.scrollToBottom();
+  }
+
+  getChatContainer() {
+    let chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) {
+      // Create chat container if it doesn't exist
+      chatContainer = document.createElement('div');
+      chatContainer.id = 'chat-container';
+      chatContainer.className = 'chat-container';
+      
+      // Insert after main content
+      const mainContent = document.querySelector('.main-content');
+      if (mainContent && mainContent.parentNode) {
+        mainContent.parentNode.insertBefore(chatContainer, mainContent.nextSibling);
+      } else {
+        // Fallback: append to body
+        document.body.appendChild(chatContainer);
+      }
+    }
+    return chatContainer;
+  }
+
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -1641,62 +1807,19 @@ class RAGChatManager {
   scrollToBottom() {
     const chatContainer = document.getElementById('chat-container');
     if (chatContainer) {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-  }
-
-  async loadConversation(sessionId) {
-    try {
-      const response = await fetch(`${this.apiBase}/messages/conversation/${sessionId}`, {
-        headers: { 'Authorization': `Bearer ${this.token}` }
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        this.displayConversationHistory(result.messages);
-      }
-    } catch (error) {
-      console.error('Failed to load conversation:', error);
-    }
-  }
-
-  displayConversationHistory(messages) {
-    const chatContainer = document.getElementById('chat-container');
-    if (!chatContainer) return;
-
-    chatContainer.innerHTML = '';
-    
-    messages.forEach(msg => {
-      if (msg.metadata?.messageType === 'user_query') {
-        this.displayUserMessage(msg.message);
-      } else if (msg.metadata?.messageType === 'ai_response') {
-        this.displayAIResponse({
-          message: msg.message,
-          sources: msg.metadata?.sources || [],
-          processingTime: msg.metadata?.processingTime
+        // Smooth scroll to bottom
+        chatContainer.scrollTo({
+        top: chatContainer.scrollHeight,
+        behavior: 'smooth'
         });
-      }
-    });
+    }
   }
 }
 
-// Initialize RAG Chat Manager
+// Initialize RAG Chat Manager when page loads
 document.addEventListener('DOMContentLoaded', () => {
-  const ragChat = new RAGChatManager();
-  
-  // Handle form submission
-  const chatForm = document.getElementById('chat-form');
-  const chatInput = document.getElementById('chat-input');
-  
-  if (chatForm && chatInput) {
-    chatForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const message = chatInput.value.trim();
-      if (message) {
-        ragChat.sendMessage(message);
-        chatInput.value = '';
-      }
-    });
-  }
+  // Wait for your existing CopilotApp to initialize first
+  setTimeout(() => {
+    window.ragChat = new RAGChatManager();
+  }, 1000);
 });
-
