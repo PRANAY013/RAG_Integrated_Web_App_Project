@@ -125,6 +125,7 @@ class GroqClient :
 
 # LLAMAINDEX INTEGRATION - signature 5LINE
 
+# set/select/choose model global 
 MODEL_GLOBAL = llama31_8
 
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
@@ -136,33 +137,113 @@ Settings.embed_model = HuggingFaceEmbedding (model_name="BAAI/bge-small-en-v1.5"
 # model selection - can be done locally in function but openAI is being referenced
 Settings.llm = Groq(model=MODEL_GLOBAL, api_key=GROQ_KEY)
 
-def analyze_doc (file_path, question="summarize this document") :
+# for input dir and multiple files - GLOBAL SET
+documents  = SimpleDirectoryReader(input_dir = "./documents").load_data()
 
-    # model definition - groq api used here 
-    # llm = Groq(model=MODEL_GLOBAL, api_key=GROQ_KEY) # globallyset
-    documents = SimpleDirectoryReader(input_files = [file_path]).load_data()
+# llm context def - the user message query - GLOBAL SET
+index = VectorStoreIndex.from_documents(documents)
+query_engine = index.as_query_engine()
 
-    # llm context def - the user message query
-    index = VectorStoreIndex.from_documents(documents)
 
-    # RAG function - query the document
-    query_engine = index.as_query_engine()
-    response = query_engine.query(question)
+# - - -
 
-    return str(response)
+# def analyze_doc (file_path, question="summarize this document") :
 
-def test_analyze_doc () :
+#     # model definition - groq api used here 
+#     # llm = Groq(model=MODEL_GLOBAL, api_key=GROQ_KEY) # globallyset
 
-    result = analyze_doc(
-        "testdoc.pdf",
-        "What is machine learning and summarize this document",
-    )
+#     # for indivisual files - test purpose 
+#     documents = SimpleDirectoryReader(input_files = [file_path]).load_data()
 
-    print ("\n= = = = = = = = = = = = = = = = = = = =\nDocument Analysis Result: ")
-    print (result)
+#     # llm context def - the user message query
+#     # index = VectorStoreIndex.from_documents(documents)
+
+#     # RAG function - query the document
+#     query_engine = index.as_query_engine()
+#     response = query_engine.query(question)
+
+#     return str(response)
+
+# def test_analyze_doc () :
+
+#     result = analyze_doc(
+#         "testdoc.pdf",
+#         "What is machine learning and summarize this document",
+#     )
+
+#     print ("\n= = = = = = = = = = = = = = = = = = = =\nDocument Analysis Result: ")
+#     print (result)
 
 
 
 # - - - - -
 
-test_analyze_doc()
+# FAST_API STUFF - setup and settings
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import uvicorn
+from typing import Optional, List
+
+app = FastAPI(title="RAG Service API", version="1.0.0")
+
+# CORS middleware for frontend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3001" , 
+        "http://127.0.0.1:5500"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Request/Response models
+class QueryRequest(BaseModel):
+    query: str
+    user_id: str
+    session_id: Optional[str] = None
+
+class QueryResponse(BaseModel):
+    response: str
+    sources: List[str] = []
+    model_used: str
+    processing_time: float
+
+
+# - - - 
+
+# Fast API - respone generation 
+
+@app.post("/query", response_model=QueryResponse)
+async def process_query(request: QueryRequest):
+    try:
+        import time
+        start_time = time.time()
+        
+        # Process query through RAG
+        response = query_engine.query(request.query)
+        processing_time = time.time() - start_time
+        
+        return QueryResponse(
+            response=str(response),
+            sources=[str(node.node.metadata) for node in response.source_nodes],
+            model_used=MODEL_GLOBAL,
+            processing_time=processing_time
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "model": MODEL_GLOBAL}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# - - - - -
+
+
