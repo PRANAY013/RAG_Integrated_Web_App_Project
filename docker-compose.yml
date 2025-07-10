@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/rag_app
+      - RAG_SERVICE_URL=http://rag_service:8000
+    depends_on:
+      - mongodb
+
+  rag_service:
+    build: ./rag_service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./rag_service/documents:/app/documents
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
