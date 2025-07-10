@@ -1513,3 +1513,190 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('submit', (e) => {
     e.preventDefault();
 });
+
+
+
+// RAG Chat Integration --- ( under review ... )
+class RAGChatManager {
+  constructor() {
+    this.apiBase = 'http://localhost:3001/api';
+    this.token = localStorage.getItem('authToken');
+    this.currentSessionId = this.generateSessionId();
+    this.initializeChat();
+  }
+
+  generateSessionId() {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async sendMessage(message) {
+    if (!message.trim()) return;
+
+    try {
+      // Show user message immediately
+      this.displayUserMessage(message);
+      this.showTypingIndicator();
+
+      const response = await fetch(`${this.apiBase}/messages/rag/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.token}`
+        },
+        body: JSON.stringify({
+          message: message,
+          sessionId: this.currentSessionId
+        })
+      });
+
+      const result = await response.json();
+      this.hideTypingIndicator();
+
+      if (result.success) {
+        this.displayAIResponse(result.aiResponse);
+        this.updateSidebar(); // Refresh sidebar with new conversation
+      } else {
+        this.displayError('Failed to get response');
+      }
+    } catch (error) {
+      this.hideTypingIndicator();
+      this.displayError('Connection error');
+      console.error('RAG query error:', error);
+    }
+  }
+
+  displayUserMessage(message) {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message user-message';
+    messageDiv.innerHTML = `
+      <div class="message-content">
+        <div class="message-text">${this.escapeHtml(message)}</div>
+        <div class="message-time">${new Date().toLocaleTimeString()}</div>
+      </div>
+    `;
+    
+    chatContainer.appendChild(messageDiv);
+    this.scrollToBottom();
+  }
+
+  displayAIResponse(response) {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message ai-message';
+    messageDiv.innerHTML = `
+      <div class="message-content">
+        <div class="message-text">${this.escapeHtml(response.message)}</div>
+        ${response.sources && response.sources.length > 0 ? 
+          `<div class="message-sources">
+            <strong>Sources:</strong> ${response.sources.join(', ')}
+          </div>` : ''}
+        <div class="message-time">
+          ${new Date().toLocaleTimeString()} 
+          (${response.processingTime?.toFixed(2)}s)
+        </div>
+      </div>
+    `;
+    
+    chatContainer.appendChild(messageDiv);
+    this.scrollToBottom();
+  }
+
+  showTypingIndicator() {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message ai-message typing-indicator';
+    typingDiv.id = 'typing-indicator';
+    typingDiv.innerHTML = `
+      <div class="message-content">
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    `;
+    
+    chatContainer.appendChild(typingDiv);
+    this.scrollToBottom();
+  }
+
+  hideTypingIndicator() {
+    const typingIndicator = document.getElementById('typing-indicator');
+    if (typingIndicator) {
+      typingIndicator.remove();
+    }
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  scrollToBottom() {
+    const chatContainer = document.getElementById('chat-container');
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }
+
+  async loadConversation(sessionId) {
+    try {
+      const response = await fetch(`${this.apiBase}/messages/conversation/${sessionId}`, {
+        headers: { 'Authorization': `Bearer ${this.token}` }
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        this.displayConversationHistory(result.messages);
+      }
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+    }
+  }
+
+  displayConversationHistory(messages) {
+    const chatContainer = document.getElementById('chat-container');
+    if (!chatContainer) return;
+
+    chatContainer.innerHTML = '';
+    
+    messages.forEach(msg => {
+      if (msg.metadata?.messageType === 'user_query') {
+        this.displayUserMessage(msg.message);
+      } else if (msg.metadata?.messageType === 'ai_response') {
+        this.displayAIResponse({
+          message: msg.message,
+          sources: msg.metadata?.sources || [],
+          processingTime: msg.metadata?.processingTime
+        });
+      }
+    });
+  }
+}
+
+// Initialize RAG Chat Manager
+document.addEventListener('DOMContentLoaded', () => {
+  const ragChat = new RAGChatManager();
+  
+  // Handle form submission
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
+  
+  if (chatForm && chatInput) {
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const message = chatInput.value.trim();
+      if (message) {
+        ragChat.sendMessage(message);
+        chatInput.value = '';
+      }
+    });
+  }
+});
+
