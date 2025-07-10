@@ -5316,3 +5316,100 @@ body {
   border-radius: 18px; 
   color: var(--copilot-text)
 }
+
+
+
+
+/* Document Management Styles */
+.document-section {
+    padding: var(--space-16);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-12);
+}
+
+.section-header h4 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.document-count {
+    background: var(--color-primary);
+    color: var(--color-btn-primary-text);
+    font-size: var(--font-size-xs);
+    padding: var(--space-2) var(--space-6);
+    border-radius: var(--radius-full);
+    min-width: 20px;
+    text-align: center;
+}
+
+.document-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.document-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: var(--space-8);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--duration-fast) var(--ease-standard);
+    position: relative;
+}
+
+.document-item:hover {
+    background: var(--color-secondary);
+}
+
+.document-icon {
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.document-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.document-name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.document-meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin-top: var(--space-2);
+}
+
+.document-delete {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: var(--space-4);
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.document-item:hover .document-delete {
+    opacity: 1;
+}
+
+.document-delete:hover {
+    background: var(--color-error);
+    color: white;
+}

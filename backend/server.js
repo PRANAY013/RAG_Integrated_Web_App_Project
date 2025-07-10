@@ -33,6 +33,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/MongoServ
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/messages', require('./routes/messages'));
+app.use('/api/documents', require('./routes/documents'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -54,7 +55,8 @@ app.get('/', (req, res) => {
             localLogin: '/api/auth/login',      // NEW
             register: '/api/auth/register',     // NEW
             verify: '/api/auth/verify',
-            messages: '/api/messages'
+            messages: '/api/messages',
+            documents: '/api/documents' 
         },
         authentication: {
             google: 'Use /api/auth/google for Google OAuth',
@@ -71,4 +73,5 @@ app.listen(PORT, () => {
     console.log(`   - Google OAuth: http://localhost:${PORT}/api/auth/google`);
     console.log(`   - Local Login: http://localhost:${PORT}/api/auth/login`);
     console.log(`   - Register: http://localhost:${PORT}/api/auth/register`);
+    console.log(` - Documents: http://localhost:${PORT}/api/documents`);
 });

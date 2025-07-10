@@ -1645,6 +1645,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize document upload
     window.documentUpload = new DocumentUploadManager();
+
+    // Load documents if user is already authenticated
+    setTimeout(async () => {
+        const token = localStorage.getItem('authToken');
+        if (token && window.documentUpload) {
+            await window.documentUpload.refreshDocumentList();
+        }
+    }, 2000);
   
 });
 
@@ -2898,15 +2906,278 @@ class DocumentUploadManager {
         this.handleFileSelection(files);
     }
 
-    handleFileSelection(files) {
+    async handleFileSelection(files) {
         if (!files || files.length === 0) return;
 
-        console.log('📁 Files selected:', files.length);
-        
-        // For now, just show success message
-        alert(`Selected ${files.length} file(s) for upload!`);
-        this.hideUploadOverlay();
+        const validFiles = [];
+        const errors = [];
+
+        // Validate files
+        Array.from(files).forEach(file => {
+            if (!this.allowedTypes.includes(file.type)) {
+                errors.push(`${file.name}: Unsupported file type`);
+                return;
+            }
+
+            if (file.size > this.maxFileSize) {
+                errors.push(`${file.name}: File too large (max 10MB)`);
+                return;
+            }
+
+            validFiles.push(file);
+        });
+
+        if (errors.length > 0) {
+            alert('Upload errors:\n' + errors.join('\n'));
+        }
+
+        if (validFiles.length > 0) {
+            this.hideUploadOverlay();
+            await this.uploadFiles(validFiles);
+        }
     }
+
+    async uploadFiles(files) {
+        this.showProgressModal();
+        
+        try {
+            const formData = new FormData();
+            files.forEach(file => {
+                formData.append('documents', file);
+            });
+
+            this.displayUploadingFiles(files);
+            this.updateProgress(10);
+
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('http://localhost:3001/api/documents/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            this.updateProgress(70);
+
+            if (response.ok) {
+                const result = await response.json();
+                this.updateProgress(100);
+                this.handleUploadSuccess(result);
+                
+                // Refresh document list
+                await this.refreshDocumentList();
+                
+            } else {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+        } catch (error) {
+            console.error('Upload error:', error);
+            this.handleUploadError(error);
+        }
+    }
+
+    showProgressModal() {
+        if (this.progressModal) {
+            this.progressModal.classList.add('active');
+        }
+    }
+
+    hideProgressModal() {
+        if (this.progressModal) {
+            this.progressModal.classList.remove('active');
+        }
+    }
+
+    displayUploadingFiles(files) {
+        if (!this.uploadFileList) return;
+
+        this.uploadFileList.innerHTML = '';
+        files.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'upload-file-item';
+            fileItem.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                </svg>
+                <span>${file.name}</span>
+            `;
+            this.uploadFileList.appendChild(fileItem);
+        });
+    }
+
+    updateProgress(percent) {
+        if (this.progressBar) {
+            this.progressBar.style.width = `${percent}%`;
+        }
+        if (this.progressText) {
+            this.progressText.textContent = `${Math.round(percent)}%`;
+        }
+    }
+
+    handleUploadSuccess(result) {
+        this.updateProgress(100);
+        
+        // Mark files as successful
+        const fileItems = this.uploadFileList.querySelectorAll('.upload-file-item');
+        fileItems.forEach(item => {
+            item.classList.add('success');
+        });
+
+        setTimeout(() => {
+            this.hideProgressModal();
+            alert(result.message || 'Documents uploaded successfully!');
+            
+            // Trigger RAG reindexing
+            this.triggerDocumentReindex();
+        }, 1000);
+    }
+
+    handleUploadError(error) {
+        const fileItems = this.uploadFileList.querySelectorAll('.upload-file-item');
+        fileItems.forEach(item => {
+            item.classList.add('error');
+        });
+
+        setTimeout(() => {
+            this.hideProgressModal();
+            alert('Upload failed. Please try again.');
+        }, 1000);
+    }
+
+    async triggerDocumentReindex() {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('http://localhost:3001/api/documents/reindex', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                console.log('✅ Document reindexing triggered');
+            }
+        } catch (error) {
+            console.error('Reindex error:', error);
+        }
+    }
+
+
+    async refreshDocumentList() {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('http://localhost:3001/api/documents/list', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.updateDocumentDisplay(data.documents);
+            }
+        } catch (error) {
+            console.error('Error fetching documents:', error);
+        }
+    }
+
+    updateDocumentDisplay(documents) {
+        // Update sidebar or create a document management panel
+        this.renderDocumentList(documents);
+        
+        // Dispatch event for other components
+        document.dispatchEvent(new CustomEvent('documentsUpdated', {
+            detail: { documents }
+        }));
+    }
+
+    renderDocumentList(documents) {
+        // Create or update document list in sidebar
+        let documentSection = document.getElementById('document-section');
+        if (!documentSection) {
+            documentSection = this.createDocumentSection();
+        }
+
+        documentSection.innerHTML = `
+            <div class="section-header">
+                <h4>My Documents</h4>
+                <span class="document-count">${documents.length}</span>
+            </div>
+            <div class="document-list">
+                ${documents.map(doc => `
+                    <div class="document-item" data-file-id="${doc._id}">
+                        <div class="document-icon">📄</div>
+                        <div class="document-info">
+                            <div class="document-name">${doc.originalName}</div>
+                            <div class="document-meta">
+                                ${this.formatFileSize(doc.size)} • 
+                                ${new Date(doc.uploadedAt).toLocaleDateString()}
+                            </div>
+                        </div>
+                        <button class="document-delete" onclick="window.documentUpload.deleteDocument('${doc._id}')">
+                            ×
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    createDocumentSection() {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return null;
+
+        const documentSection = document.createElement('div');
+        documentSection.id = 'document-section';
+        documentSection.className = 'sidebar-section document-section';
+        
+        // Insert before the user profile section
+        const userProfile = sidebar.querySelector('.sidebar-footer');
+        if (userProfile) {
+            sidebar.insertBefore(documentSection, userProfile);
+        } else {
+            sidebar.appendChild(documentSection);
+        }
+
+        return documentSection;
+    }
+
+    async deleteDocument(fileId) {
+        if (!confirm('Are you sure you want to delete this document?')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`http://localhost:3001/api/documents/${fileId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                this.showSuccessMessage('Document deleted successfully');
+                await this.refreshDocumentList();
+            } else {
+                throw new Error('Failed to delete document');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            this.showErrorMessage('Failed to delete document');
+        }
+    }
+
+    formatFileSize(bytes) {
+        if (!bytes) return '0 B';
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+
 }
 
 

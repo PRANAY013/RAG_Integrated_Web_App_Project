@@ -185,6 +185,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from typing import Optional, List
+import os
+import glob
+from datetime import datetime
 
 app = FastAPI(title="RAG Service API", version="1.0.0")
 
@@ -211,6 +214,92 @@ class QueryResponse(BaseModel):
     sources: List[str] = []
     model_used: str
     processing_time: float
+
+
+# - - - 
+
+# Document Handling Fast APi
+
+# Add these imports at the top
+
+# Add reindexing endpoint
+@app.post("/reindex")
+async def reindex_documents(request: dict = None):
+    """Reindex all documents in the documents directory"""
+    try:
+        start_time = time.time()
+        
+        # Get all PDF files from documents directory
+        documents_path = "./documents"
+        pdf_files = glob.glob(os.path.join(documents_path, "*.pdf"))
+        
+        if not pdf_files:
+            return {
+                "success": False,
+                "message": "No PDF documents found to index",
+                "documents_path": documents_path
+            }
+        
+        print(f"🔄 Reindexing {len(pdf_files)} documents...")
+        
+        # Reload documents
+        global documents, index, query_engine
+        documents = SimpleDirectoryReader(input_dir=documents_path).load_data()
+        
+        # Recreate index
+        index = VectorStoreIndex.from_documents(documents)
+        query_engine = index.as_query_engine()
+        
+        processing_time = time.time() - start_time
+        
+        print(f"✅ Reindexing completed in {processing_time:.2f}s")
+        
+        return {
+            "success": True,
+            "message": f"Successfully reindexed {len(pdf_files)} documents",
+            "documents_count": len(pdf_files),
+            "processing_time": processing_time,
+            "indexed_files": [os.path.basename(f) for f in pdf_files]
+        }
+        
+    except Exception as e:
+        print(f"❌ Reindexing error: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Reindexing failed: {str(e)}"
+        }
+
+# Add document status endpoint
+@app.get("/documents/status")
+async def get_documents_status():
+    """Get status of indexed documents"""
+    try:
+        documents_path = "./documents"
+        pdf_files = glob.glob(os.path.join(documents_path, "*.pdf"))
+        
+        document_info = []
+        for file_path in pdf_files:
+            file_stat = os.stat(file_path)
+            document_info.append({
+                "filename": os.path.basename(file_path),
+                "size": file_stat.st_size,
+                "modified": datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
+                "status": "indexed"
+            })
+        
+        return {
+            "success": True,
+            "documents": document_info,
+            "total_count": len(document_info)
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to get document status: {str(e)}"
+        }
+
+
 
 
 # - - - 

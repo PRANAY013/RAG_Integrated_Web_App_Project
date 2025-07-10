@@ -1,27 +1,9 @@
 const express = require('express');
 const Message = require('../models/Message');
 const User = require('../models/User');
-const jwt = require('jsonwebtoken');
+const { authenticateToken } = require('../middleware/auth'); // Import shared middleware
 const router = express.Router();
 const axios = require('axios');
-
-// Middleware to verify JWT token
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token) {
-        return res.status(401).json({ message: 'Access token required' });
-    }
-    
-    jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
-        if (err) {
-            return res.status(403).json({ message: 'Invalid token' });
-        }
-        req.user = user;
-        next();
-    });
-};
 
 // Send message endpoint
 router.post('/', authenticateToken, async (req, res) => {
