@@ -6,6 +6,50 @@ class CopilotApp {
         this.init();
     }
 
+    init() {
+        this.setupThemeToggle();
+        this.setupChatInput();
+        this.setupSuggestionCards();
+        this.setupSendButton();
+        this.detectSystemTheme();
+        this.initializeNewChatButton();
+    }
+
+    // Add this to your CopilotApp init() method
+    initializeNewChatButton() {
+        const newChatBtn = document.getElementById('newChatBtn');
+        if (newChatBtn) {
+            newChatBtn.addEventListener('click', () => {
+                console.log('🔄 New Chat button clicked');
+                this.handleNewChat();
+            });
+            console.log('✅ New Chat button event listener added');
+        } else {
+            console.warn('⚠️ New Chat button not found');
+        }
+    }
+
+    // Add this method to handle the complete new chat process
+    handleNewChat() {
+        // Hide sidebar
+        this.hideSidebarOnNewChat();
+        
+        // Reset chat state if RAG integration exists
+        if (window.ragChat && typeof window.ragChat.startNewChat === 'function') {
+            window.ragChat.startNewChat();
+        }
+        
+        // Clear input field
+        const chatInput = document.querySelector('.chat-input');
+        if (chatInput) {
+            chatInput.value = '';
+            chatInput.focus();
+        }
+        
+        console.log('✅ New chat initiated');
+    }
+
+
     renderSidebar(messages) {
     // Group messages by date
       const today = [];
@@ -50,13 +94,51 @@ class CopilotApp {
       renderSection('chat-section-month', month);
     }
 
-    init() {
-        this.setupThemeToggle();
-        this.setupChatInput();
-        this.setupSuggestionCards();
-        this.setupSendButton();
-        this.detectSystemTheme();
+    
+    hideSidebarOnNewChat() {
+        console.log('🔄 Hiding sidebar for new chat...');
+        
+        // Get sidebar elements
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.querySelector('.sidebar-overlay');
+        const body = document.body;
+        const sidebarToggle = document.querySelector('.sidebar-toggle');
+        
+        if (!sidebar) {
+            console.warn('⚠️ Sidebar element not found');
+            return;
+        }
+        
+        // Check if sidebar is currently open
+        const isOpen = sidebar.classList.contains('open');
+        
+        if (isOpen) {
+            // Remove open class and add hidden class
+            sidebar.classList.remove('open');
+            sidebar.classList.add('sidebar--hidden');
+            
+            // Hide overlay if it exists
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.remove('active');
+            }
+            
+            // Remove body scroll lock
+            if (body) {
+                body.classList.remove('sidebar-open');
+            }
+            
+            // Update sidebar toggle button state
+            if (sidebarToggle) {
+                sidebarToggle.classList.remove('active');
+            }
+            
+            console.log('✅ Sidebar hidden successfully');
+        } else {
+            console.log('ℹ️ Sidebar was already closed');
+        }
     }
+
+
 
     // Theme Management
     detectSystemTheme() {
@@ -1396,20 +1478,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.authManager = authManager;
 });
 
-// new chat button clears the existing input
-document.addEventListener('DOMContentLoaded', function() {
-    const newChatBtn = document.getElementById('newChatBtn');
-    const chatInput = document.getElementById('chatInput');
-
-    if (newChatBtn && chatInput) {
-        newChatBtn.addEventListener('click', function() {
-            chatInput.value = '';
-            // Optionally, focus the input after clearing
-            chatInput.focus();
-        });
-    }
-});
-
 // Select all chat items
 const chatItems = document.querySelectorAll('.chat-item');
 
@@ -1524,6 +1592,7 @@ class RAGChatManager {
     this.isProcessing = false;
     this.isChatActive = false;
     this.initializeChat();
+    this.initializeNewChatButton();
   }
 
   generateSessionId() {
@@ -1555,6 +1624,18 @@ class RAGChatManager {
       console.log('✅ RAG Chat Manager initialized');
     } else {
       console.error('❌ Chat input or send button not found');
+    }
+  }
+
+  initializeNewChatButton() {
+    const newChatBtn = document.getElementById('newChatBtn');
+    if (newChatBtn) {
+      newChatBtn.addEventListener('click', () => {
+        this.startNewChat();
+      });
+      console.log('✅ New Chat button functionality initialized');
+    } else {
+      console.warn('⚠️ New Chat button not found in DOM');
     }
   }
 
@@ -1657,6 +1738,7 @@ class RAGChatManager {
     
     // Reset chat state
     this.isChatActive = false;
+    this.isProcessing = false;
     this.currentSessionId = this.generateSessionId();
     
     // Get all necessary elements
@@ -1664,6 +1746,7 @@ class RAGChatManager {
     const mainContent = document.querySelector('.main-content');
     const chatContainer = document.getElementById('chat-container');
     const suggestionsGrid = document.querySelector('.suggestions-grid');
+    const contentContainer = document.querySelector('.content-container');
     
     // Step 1: Hide chat container
     if (chatContainer) {
@@ -1688,9 +1771,47 @@ class RAGChatManager {
       if (suggestionsGrid) {
         suggestionsGrid.style.display = '';
       }
+
+      if (contentContainer) {
+        contentContainer.style.display = '';
+      }
       
       console.log('✅ New chat started - welcome section restored');
+
+      // Step 4: Clear input field and focus
+      const chatInput = document.querySelector('.chat-input');
+      if (chatInput) {
+        chatInput.value = '';
+        chatInput.focus();
+      }
+
     }, 200);
+
+    // Step 5: Update sidebar to refresh chat history
+    if (window.copilotApp && window.copilotApp.fetchUserMessages) {
+      setTimeout(() => {
+        window.copilotApp.fetchUserMessages();
+      }, 500);
+    }
+    
+    // Step 6: Visual feedback for button click
+    const newChatBtn = document.getElementById('newChatBtn');
+    if (newChatBtn) {
+      newChatBtn.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        newChatBtn.style.transform = '';
+      }, 150);
+    }
+
+    if (window.copilotApp && typeof window.copilotApp.hideSidebarOnNewChat === 'function') {
+        window.copilotApp.hideSidebarOnNewChat();
+    }
+    
+    // Reset all chat state
+    this.isChatActive = false;
+    this.isProcessing = false;
+    this.currentSessionId = this.generateSessionId();
+
   }
 
 
@@ -1816,10 +1937,46 @@ class RAGChatManager {
   }
 }
 
-// Initialize RAG Chat Manager when page loads
+// Enhanced initialization in your app.js
 document.addEventListener('DOMContentLoaded', () => {
-  // Wait for your existing CopilotApp to initialize first
+  // Initialize existing CopilotApp first
+  const copilotApp = new CopilotApp();
+  
+  // Then initialize RAG Chat Manager with slight delay
   setTimeout(() => {
     window.ragChat = new RAGChatManager();
+    
+    // Connect to your existing chat input and send button
+    const chatInput = document.querySelector('.chat-input');
+    const sendButton = document.querySelector('.send-button');
+    
+    if (chatInput && sendButton) {
+      // Handle Enter key
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !window.ragChat.isProcessing) {
+          e.preventDefault();
+          handleSendMessage();
+        }
+      });
+
+      // Handle send button click
+      sendButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!window.ragChat.isProcessing) {
+          handleSendMessage();
+        }
+      });
+
+      function handleSendMessage() {
+        const message = chatInput.value.trim();
+        if (message) {
+          window.ragChat.sendMessage(message);
+          chatInput.value = '';
+        }
+      }
+    }
+    
+    console.log('✅ Complete RAG integration initialized');
   }, 1000);
 });
+
