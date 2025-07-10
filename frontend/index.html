@@ -293,6 +293,13 @@
                         id="chatInput"
                         aria-label="Chat input"
                     ></textarea>
+                    <button class="upload-button" id="uploadButton" title="Upload Documents" aria-label="Upload documents">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                    </button>
                     <button class="send-button" id="sendButton" aria-label="Send message">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -306,6 +313,42 @@
             </div>
         </div>
     </div>
+
+<!-- Document Upload Overlay -->
+<div class="upload-overlay" id="uploadOverlay">
+    <div class="upload-overlay-content">
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon-large">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                </svg>
+            </div>
+            <h3>Drop your documents here</h3>
+            <p>Supported formats: PDF, DOC, DOCX, TXT</p>
+            <div class="upload-actions">
+                <button class="btn btn--primary" id="browseFilesBtn">Browse Files</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file input -->
+<input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" multiple style="display: none;">
+
+<!-- Upload Progress Modal -->
+<div class="upload-progress-modal" id="uploadProgressModal">
+    <div class="upload-progress-content">
+        <h4>Uploading Documents</h4>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="progress-text" id="progressText">0%</span>
+        </div>
+        <div class="upload-file-list" id="uploadFileList"></div>
+    </div>
+</div>
+
 
     <!-- Loading the scripts -->
     <script src="app.js"></script>

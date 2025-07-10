@@ -257,9 +257,27 @@ class CopilotApp {
     setupSendButton() {
         const sendButton = document.getElementById('sendButton');
         if (sendButton) {
-            sendButton.addEventListener('click', () => {
-                this.handleSendMessage();
+            // Remove any existing event listeners by cloning
+            const newSendButton = sendButton.cloneNode(true);
+            sendButton.parentNode.replaceChild(newSendButton, sendButton);
+            
+            newSendButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('🔄 Send button clicked - checking for RAG Chat Manager');
+                
+                // Check if RAG Chat Manager exists and is ready
+                if (window.ragChat && typeof window.ragChat.handleSendMessage === 'function') {
+                    console.log('✅ Delegating to RAG Chat Manager');
+                    window.ragChat.handleSendMessage();
+                } else {
+                    console.warn('⚠️ RAG Chat Manager not available, using fallback');
+                    this.handleSendMessage(); // Fallback to local handler
+                }
             });
+            
+            console.log('✅ Send button event listener updated');
+        } else {
+            console.error('❌ Send button not found!');
         }
     }
 
@@ -581,6 +599,10 @@ class GoogleAuthManager {
             
             // Restore user session if exists
             this.restoreUserSession();
+
+            // Check auth status and update sidebar
+            await this.restoreUserSession();
+            await this.checkAuthAndUpdateSidebar();
             
             this.isInitialized = true;
             this.log('Google Auth Manager initialized successfully');
@@ -589,6 +611,84 @@ class GoogleAuthManager {
             this.handleError('Initialization failed', error);
         }
     }
+
+    /**
+     * Update sidebar user profile text
+     */
+    updateSidebarProfile(userData) {
+        const userNameElement = document.querySelector('.user-name');
+        const userEmailElement = document.querySelector('.user-email');
+        
+        if (userNameElement && userData.name) {
+            userNameElement.textContent = userData.name;
+        }
+        
+        if (userEmailElement && userData.email) {
+            userEmailElement.textContent = userData.email;
+        }
+        
+        this.log('✅ Sidebar profile updated:', userData.name, userData.email);
+    }
+
+    /**
+     * Clear sidebar user profile text
+     */
+    clearSidebarProfile() {
+        const userNameElement = document.querySelector('.user-name');
+        const userEmailElement = document.querySelector('.user-email');
+        
+        if (userNameElement) {
+            userNameElement.textContent = 'User';
+        }
+        
+        if (userEmailElement) {
+            userEmailElement.textContent = 'user@example.com';
+        }
+        
+        this.log('✅ Sidebar profile cleared');
+    }
+
+    /**
+ * Check authentication status and update sidebar - FIXED URL
+ */
+async checkAuthAndUpdateSidebar() {
+    try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            this.clearSidebarProfile();
+            return;
+        }
+
+        // FIXED: Use correct URL with full localhost path
+        const response = await fetch('http://localhost:3001/api/auth/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            this.updateSidebarProfile(data.user);
+            this.currentUser = data.user;
+            
+            // Also update the session storage
+            const sessionData = {
+                token: token,
+                user: data.user
+            };
+            localStorage.setItem('google_auth_session', JSON.stringify(sessionData));
+            
+        } else {
+            console.warn('Token verification failed, clearing session');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('google_auth_session');
+            this.clearSidebarProfile();
+        }
+    } catch (error) {
+        this.handleError('Auth check failed', error);
+        this.clearSidebarProfile();
+    }
+}
+
+
 
     /**
      * Cache DOM elements for better performance
@@ -624,7 +724,6 @@ class GoogleAuthManager {
           toggleToSignIn: document.getElementById('toggleToSignIn')
       };
   }
-
 
 
     /**
@@ -757,15 +856,17 @@ class GoogleAuthManager {
                 this.currentUser = user;
                 this.saveUserSession(user);
                 this.updateUIForSignedIn(user);
+                this.updateSidebarProfile(user);
                 this.closeDropdown();
                 this.config.onSignIn(user);
 
-                // Fetch messages after sign in
-                this.fetchUserMessages().then(messages => {
-                    this.renderSidebar(messages);
-                });
+                // Fetch and render messages
+                const messages = await this.fetchUserMessages();
+                if (window.copilotApp && typeof window.copilotApp.renderSidebar === 'function') {
+                    window.copilotApp.renderSidebar(messages);
+                }
 
-                this.log('Local user signed in successfully:', user);
+                this.log('✅ Local user signed in successfully:', user);
             } else {
                 this.showError(data.message || 'Sign in failed');
             }
@@ -817,6 +918,7 @@ class GoogleAuthManager {
             this.updateUIForSignedIn(user);
             this.closeDropdown();
             this.config.onSignIn(user);
+            this.updateSidebarProfile(user);
 
             console.log('Local user registered successfully:', user);
         } else {
@@ -1003,6 +1105,7 @@ class GoogleAuthManager {
             
             // Call custom sign-in callback
             this.config.onSignIn(user);
+            this.updateSidebarProfile(user);
             
             this.log('User signed in successfully:', user);
             
@@ -1055,6 +1158,7 @@ class GoogleAuthManager {
             
             // Call custom sign-out callback
             this.config.onSignOut();
+            this.clearSidebarProfile();
             
             this.log('User signed out successfully');
             
@@ -1218,38 +1322,90 @@ class GoogleAuthManager {
     }
 
     /**
-     * Restore user session from localStorage
-     */
-    restoreUserSession() {
-        try {
-            const sessionData = localStorage.getItem('google_auth_session');
-            if (!sessionData) return;
-
-            const parsed = JSON.parse(sessionData);
-            const sessionAge = Date.now() - parsed.timestamp;
+ * Enhanced session restoration with backend token validation
+ */
+async restoreUserSession() {
+    try {
+        const sessionData = localStorage.getItem('google_auth_session');
+        const authToken = localStorage.getItem('authToken');
         
-            // Session expires after 24 hours
-            if (sessionAge > 24 * 60 * 60 * 1000) {
-                this.clearUserSession();
-                return;
+        console.log('🔄 Attempting to restore user session...');
+        console.log('Session data exists:', !!sessionData);
+        console.log('Auth token exists:', !!authToken);
+        
+        if (sessionData && authToken) {
+            const session = JSON.parse(sessionData);
+            if (session.user) {
+                // Validate token with backend before restoring UI
+                const isValid = await this.validateTokenWithBackend(authToken);
+                
+                if (isValid) {
+                    this.currentUser = session.user;
+                    this.updateUIForSignedIn(session.user);
+                    this.updateSidebarProfile(session.user);
+                    this.config.onSignIn(session.user);
+                    
+                    // Fetch and render messages
+                    const messages = await this.fetchUserMessages();
+                    if (window.copilotApp && typeof window.copilotApp.renderSidebar === 'function') {
+                        window.copilotApp.renderSidebar(messages);
+                    }
+                    
+                    this.log('✅ User session restored and validated:', session.user);
+                } else {
+                    // Token is invalid, clear everything
+                    this.clearInvalidSession();
+                }
             }
-
-            if (parsed.user) {
-                this.currentUser = parsed.user;
-                this.updateUIForSignedIn(parsed.user);
-            
-                // Fetch and render chat history after session restore
-                this.fetchUserMessages().then(messages => {
-                    this.renderSidebar(messages);
-                });
-            
-                console.log('User session restored');
-            }
-        } catch (error) {
-            console.log('Failed to restore user session:', error);
-            this.clearUserSession();
+        } else {
+            this.clearSidebarProfile();
+            this.log('ℹ️ No session data to restore');
         }
+    } catch (error) {
+        this.handleError('Session restoration failed', error);
+        this.clearInvalidSession();
     }
+}
+
+/**
+ * Validate token with backend
+ */
+async validateTokenWithBackend(token) {
+    try {
+        console.log('🔍 Validating token with backend...');
+        const response = await fetch('http://localhost:3001/api/auth/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Token validation successful');
+            // Update session with fresh user data
+            this.currentUser = data.user;
+            return true;
+        } else {
+            console.warn('⚠️ Token validation failed:', response.status);
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Token validation error:', error);
+        return false;
+    }
+}
+
+/**
+ * Clear invalid session data
+ */
+clearInvalidSession() {
+    console.log('🧹 Clearing invalid session data...');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('google_auth_session');
+    this.currentUser = null;
+    this.clearSidebarProfile();
+    this.updateUIForSignedOut();
+    this.config.onSignOut();
+    this.log('✅ Invalid session cleared');
+}
 
     /**
      * Clear user session from localStorage
@@ -1452,19 +1608,10 @@ if (typeof module !== 'undefined' && module.exports) {
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     const app = new CopilotApp();
+    window.copilotApp = app
     addSmoothInteractions();
     setupAccessibility();
     
-    // Add loading animation for the page
-    document.body.style.opacity = '0';
-    document.body.style.transform = 'translateY(20px)';
-    
-    setTimeout(() => {
-        document.body.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-        document.body.style.opacity = '1';
-        document.body.style.transform = 'translateY(0)';
-    }, 100);
-
     // NEW: Initialize authentication manager
     const authManager = new GoogleAuthManager({
         debugMode: true,
@@ -1482,9 +1629,23 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Auth error:', error);
         }
     });
-
     // Make auth manager globally accessible
     window.authManager = authManager;
+
+    
+    // Add loading animation for the page
+    document.body.style.opacity = '0';
+    document.body.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        document.body.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        document.body.style.opacity = '1';
+        document.body.style.transform = 'translateY(0)';
+    }, 100);
+
+    // Initialize document upload
+    window.documentUpload = new DocumentUploadManager();
+  
 });
 
 // Select all chat items
@@ -1591,7 +1752,6 @@ document.addEventListener('submit', (e) => {
     e.preventDefault();
 });
 
-
 // Enhanced RAG Chat Manager 
 class RAGChatManager {
   constructor() {
@@ -1628,16 +1788,71 @@ class RAGChatManager {
     return token;
   }
 
-  refreshToken() {
-    this.token = this.getAuthToken();
-    if (!this.token) {
-        console.warn('No auth token available - user may need to sign in again');
-        this.displayError('Please sign in to continue');
+  async refreshToken() {
+    // Primary: Direct authToken
+    let token = localStorage.getItem('authToken');
+    
+    // Fallback: Google auth session
+    if (!token) {
+        const sessionData = localStorage.getItem('google_auth_session');
+        if (sessionData) {
+            try {
+                const parsed = JSON.parse(sessionData);
+                token = parsed.token;
+                // Sync the token to primary storage
+                if (token) {
+                    localStorage.setItem('authToken', token);
+                }
+            } catch (e) {
+                console.error('Failed to parse session data:', e);
+            }
+        }
+    }
+    
+    // Validate token with backend
+    if (token) {
+        const isValid = await this.validateToken(token);
+        if (isValid) {
+            this.token = token;
+            console.log('🔑 Token validated and refreshed');
+            return true;
+        } else {
+            // Token is invalid, clear everything
+            this.clearAuthData();
+            return false;
+        }
+    }
+    
+    console.warn('⚠️ No auth token available - user may need to sign in again');
+    this.displayError('Please sign in to continue chatting');
+    return false;
+}
+
+async validateToken(token) {
+    try {
+        const response = await fetch(`${this.apiBase}/auth/verify`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        return response.ok;
+    } catch (error) {
+        console.error('Token validation error:', error);
         return false;
     }
-    return true;
-  }
+}
 
+/**
+ * Clear authentication data
+ */
+clearAuthData() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('google_auth_session');
+    this.token = null;
+    
+    // Trigger UI update through GoogleAuthManager
+    if (window.googleAuth && typeof window.googleAuth.clearInvalidSession === 'function') {
+        window.googleAuth.clearInvalidSession();
+    }
+}
 
   generateSessionId() {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1702,15 +1917,18 @@ class RAGChatManager {
 
   async sendMessage(message) {
     try {
-      if (!this.refreshToken()) {return;}
-      console.log('🚀 Sending message:', message);
-      
-      // Show chat interface and hide welcome section
-      this.activateChatMode();
-      
-      // Show user message immediately
-      this.displayUserMessage(message);
-      this.showTypingIndicator();
+      // Validate authentication before sending
+        const tokenValid = await this.refreshToken();
+        if (!tokenValid) {
+            throw new Error('Authentication required - please sign in again');
+        }
+        
+        console.log('🚀 Sending message to RAG service...');
+        
+        // Activate chat mode and show user message
+        this.activateChatMode();
+        this.displayUserMessage(message);
+        this.showTypingIndicator();
 
       const response = await fetch(`${this.apiBase}/messages/rag/query`, {
         method: 'POST',
@@ -2485,4 +2703,210 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Complete RAG integration initialized');
   }, 1000);
 });
+
+
+class DocumentUploadManager {
+    constructor() {
+        this.uploadOverlay = null;
+        this.uploadZone = null;
+        this.fileInput = null;
+        this.progressModal = null;
+        this.uploadButton = null;
+        this.allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+        this.maxFileSize = 10 * 1024 * 1024; // 10MB
+        this.init();
+    }
+
+    init() {
+        console.log('🔧 Initializing DocumentUploadManager...');
+        this.cacheElements();
+        this.setupEventListeners();
+        this.setupGlobalDragAndDrop();
+        console.log('✅ Document Upload Manager initialized');
+    }
+
+    cacheElements() {
+        this.uploadOverlay = document.getElementById('uploadOverlay');
+        this.uploadZone = document.getElementById('uploadZone');
+        this.fileInput = document.getElementById('fileInput');
+        this.progressModal = document.getElementById('uploadProgressModal');
+        this.uploadButton = document.getElementById('uploadButton');
+        this.browseFilesBtn = document.getElementById('browseFilesBtn');
+        this.cancelUploadBtn = document.getElementById('cancelUploadBtn');
+        this.progressBar = document.getElementById('progressFill');
+        this.progressText = document.getElementById('progressText');
+        this.uploadFileList = document.getElementById('uploadFileList');
+
+        // Debug: Check if elements exist
+        console.log('🔍 Element check:', {
+            uploadButton: !!this.uploadButton,
+            uploadOverlay: !!this.uploadOverlay,
+            uploadZone: !!this.uploadZone,
+            fileInput: !!this.fileInput
+        });
+    }
+
+    setupEventListeners() {
+        // Upload button in input area
+        if (this.uploadButton) {
+            this.uploadButton.addEventListener('click', () => {
+                console.log('📎 Upload button clicked!');
+                this.showUploadOverlay();
+            });
+            console.log('✅ Upload button event listener added');
+        } else {
+            console.error('❌ Upload button not found!');
+        }
+
+        // Browse files button
+        if (this.browseFilesBtn) {
+            this.browseFilesBtn.addEventListener('click', () => this.triggerFileInput());
+        }
+
+        // Cancel upload button
+        if (this.cancelUploadBtn) {
+            this.cancelUploadBtn.addEventListener('click', () => this.hideUploadOverlay());
+        }
+
+        // File input change
+        if (this.fileInput) {
+            this.fileInput.addEventListener('change', (e) => this.handleFileSelection(e.target.files));
+        }
+
+        // Upload zone drag and drop
+        if (this.uploadZone) {
+            this.uploadZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+            this.uploadZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+            this.uploadZone.addEventListener('drop', (e) => this.handleDrop(e));
+        }
+
+        // Overlay click to close
+        if (this.uploadOverlay) {
+            this.uploadOverlay.addEventListener('click', (e) => {
+                if (e.target === this.uploadOverlay) {
+                    this.hideUploadOverlay();
+                }
+            });
+        }
+
+        // Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideUploadOverlay();
+            }
+        });
+    }
+
+    setupGlobalDragAndDrop() {
+        let dragCounter = 0;
+
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            if (this.isDraggedFileValid(e)) {
+                this.showUploadOverlay();
+                if (this.uploadOverlay) {
+                    this.uploadOverlay.classList.add('drag-over');
+                }
+            }
+        });
+
+        document.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0 && this.uploadOverlay) {
+                this.uploadOverlay.classList.remove('drag-over');
+            }
+        });
+
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            if (this.uploadOverlay) {
+                this.uploadOverlay.classList.remove('drag-over');
+            }
+        });
+    }
+
+    isDraggedFileValid(e) {
+        const items = e.dataTransfer.items;
+        if (!items) return false;
+
+        for (let item of items) {
+            if (item.kind === 'file') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    showUploadOverlay() {
+        console.log('🔧 showUploadOverlay called');
+        if (this.uploadOverlay) {
+            console.log('✅ Showing upload overlay');
+            this.uploadOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        } else {
+            console.error('❌ Upload overlay element not found!');
+        }
+    }
+
+    hideUploadOverlay() {
+        if (this.uploadOverlay) {
+            this.uploadOverlay.classList.remove('active', 'drag-over');
+            document.body.style.overflow = '';
+        }
+        if (this.uploadZone) {
+            this.uploadZone.classList.remove('drag-over');
+        }
+    }
+
+    triggerFileInput() {
+        if (this.fileInput) {
+            this.fileInput.click();
+        }
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.uploadZone) {
+            this.uploadZone.classList.add('drag-over');
+        }
+    }
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.uploadZone && !this.uploadZone.contains(e.relatedTarget)) {
+            this.uploadZone.classList.remove('drag-over');
+        }
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.uploadZone) {
+            this.uploadZone.classList.remove('drag-over');
+        }
+        
+        const files = e.dataTransfer.files;
+        this.handleFileSelection(files);
+    }
+
+    handleFileSelection(files) {
+        if (!files || files.length === 0) return;
+
+        console.log('📁 Files selected:', files.length);
+        
+        // For now, just show success message
+        alert(`Selected ${files.length} file(s) for upload!`);
+        this.hideUploadOverlay();
+    }
+}
+
 
