@@ -4892,7 +4892,7 @@ body {
 
 /* Technical terms styling */
 .ai-message strong {
-  color: var(--color-text);
+  color: var(--copilot-text);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -5053,20 +5053,20 @@ body {
 }
 
 .response-header.roman {
-    color: var(--color-primary);
+    color: var(--copilot-text);
     border-bottom: 2px solid var(--color-primary);
     padding-bottom: var(--space-4);
     margin: var(--space-24) 0 var(--space-16) 0;
 }
 
 .response-subheader {
-    color: var(--color-text);
+    color: var(--copilot-text);
     margin: var(--space-20) 0 var(--space-12) 0;
     font-size: var(--font-size-lg);
 }
 
 .response-section-header {
-    color: var(--color-primary);
+    color: var(--copilot-text);
     margin: var(--space-16) 0 var(--space-12) 0;
     font-size: var(--font-size-base);
     text-transform: uppercase;
