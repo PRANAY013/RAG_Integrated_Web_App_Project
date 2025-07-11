@@ -173,7 +173,7 @@ documents = None
 index = None
 query_engine = None
 
-# Smart query classification - ADD THIS AFTER MODEL CONFIGURATION
+# Smart query classification 
 def classify_query(query: str) -> str:
     """
     Comprehensive query classification using NLP techniques and pattern matching.
@@ -187,138 +187,450 @@ def classify_query(query: str) -> str:
     
     # Advanced greeting detection with variations and multilingual support
     greeting_indicators = [
+        # English greetings
         "hi", "hello", "hey", "hiya", "howdy", "greetings", "salutations",
-        "good morning", "good afternoon", "good evening", "good day",
-        "what's up", "whats up", "sup", "yo", "hola", "bonjour",
-        "guten tag", "konnichiwa", "namaste", "shalom", "aloha"
+        "good morning", "good afternoon", "good evening", "good day", "good night",
+        "what's up", "whats up", "sup", "yo", "wassup", "hey there", "hi there",
+        "hello there", "morning", "afternoon", "evening", "how are you", "how's it going",
+        "how you doing", "nice to meet you", "pleasure to meet you", "welcome",
+        
+        # Casual and informal
+        "heya", "heyo", "yooo", "heyy", "hiii", "helloo", "what up", "wazzup",
+        "how's things", "how are things", "how's life", "long time no see",
+        "good to see you", "great to see you", "nice seeing you",
+        
+        # Multilingual greetings
+        "hola", "bonjour", "guten tag", "konnichiwa", "namaste", "shalom", "aloha",
+        "ciao", "buenos dias", "buenas tardes", "buenas noches", "bom dia",
+        "guten morgen", "guten abend", "ohayo", "konbanwa", "ni hao", "annyeong",
+        "sawasdee", "xin chao", "merhaba", "zdravstvuyte", "dzien dobry",
+        
+        # Regional and cultural
+        "top of the morning", "g'day", "cheerio", "how do you do", "salaam",
+        "jambo", "sawubona", "dumela", "habari", "asante", "karibu"
     ]
-    if any(greeting in query_lower for greeting in greeting_indicators):
-        return "greeting"
     
     # Comprehensive farewell detection
     farewell_indicators = [
+        # Standard farewells
         "bye", "goodbye", "see you", "farewell", "take care", "catch you later",
         "until next time", "talk to you later", "ttyl", "cya", "peace out",
-        "have a good day", "have a nice day", "good night", "goodnight"
+        "have a good day", "have a nice day", "good night", "goodnight",
+        
+        # Extended farewells
+        "see you soon", "see you around", "see you tomorrow", "see you next time",
+        "until we meet again", "until later", "until then", "so long", "adios",
+        "au revoir", "auf wiedersehen", "sayonara", "ciao", "arrivederci",
+        "hasta la vista", "hasta luego", "see ya", "later", "laters",
+        
+        # Casual and informal
+        "gotta go", "got to go", "gotta run", "got to run", "i'm out", "im out",
+        "i'm off", "im off", "time to go", "heading out", "signing off",
+        "logging off", "peace", "peaceout", "deuces", "catch ya", "later gator",
+        
+        # Polite endings
+        "have a great day", "have a wonderful day", "have a good one",
+        "have a nice evening", "have a good night", "sleep well", "sweet dreams",
+        "take it easy", "stay safe", "be well", "all the best", "best wishes",
+        "keep in touch", "stay in touch", "talk soon", "speak soon"
     ]
-    if any(farewell in query_lower for farewell in farewell_indicators):
-        return "farewell"
     
     # Advanced help request detection with context awareness
     help_indicators = [
-        "help", "assist", "support", "guide", "show me", "teach me",
-        "what do i do", "what should i do", "how do i", "can you help",
-        "i need help", "i'm stuck", "im stuck", "i don't know", "i dont know",
-        "confused", "lost", "what now", "next steps", "guidance",
-        "instructions", "tutorial", "walkthrough", "explain how"
+        # Direct help requests
+        "help", "assist", "support", "guide", "show me", "teach me", "help me",
+        "can you help", "could you help", "would you help", "please help",
+        "i need help", "need assistance", "need support", "need guidance",
+        
+        # Uncertainty expressions
+        "what do i do", "what should i do", "how do i", "how can i", "how to",
+        "i'm stuck", "im stuck", "i don't know", "i dont know", "not sure",
+        "confused", "lost", "puzzled", "perplexed", "bewildered", "baffled",
+        "clueless", "stumped", "at a loss", "no idea", "haven't a clue",
+        
+        # Guidance requests
+        "what now", "next steps", "guidance", "direction", "advice", "suggestions",
+        "instructions", "tutorial", "walkthrough", "explain how", "show how",
+        "walk me through", "step by step", "how does this work", "how do you",
+        
+        # Learning requests
+        "teach me how", "learn how to", "want to learn", "need to understand",
+        "explain to me", "break it down", "make it simple", "simplify",
+        "clarify", "elaborate", "expand on", "tell me more", "more details",
+        
+        # Problem-solving
+        "figure out", "work out", "solve this", "find a solution", "resolve",
+        "troubleshoot", "debug", "fix this", "make it work", "get this working",
+        "having trouble", "having issues", "having problems", "struggling with"
     ]
-    if any(help_ind in query_lower for help_ind in help_indicators):
-        return "help_request"
     
     # Enhanced creative request detection
     creative_indicators = [
+        # Core creativity terms
         "creative", "ideas", "brainstorm", "suggest", "inspiration", "innovative",
         "think of", "come up with", "generate", "create", "design", "invent",
         "imagine", "conceptualize", "dream up", "craft", "build", "make",
         "artistic", "original", "unique", "novel", "fresh", "new approach",
-        "out of the box", "creative writing", "story ideas", "plot", "character"
+        
+        # Creative processes
+        "out of the box", "think outside", "creative thinking", "lateral thinking",
+        "innovative solutions", "creative solutions", "new ideas", "fresh ideas",
+        "original ideas", "unique concepts", "novel approaches", "creative ways",
+        "alternative methods", "different approaches", "unconventional",
+        
+        # Content creation
+        "creative writing", "story ideas", "plot", "character", "narrative",
+        "storyline", "script", "screenplay", "poem", "poetry", "lyrics",
+        "song ideas", "music composition", "art project", "design concept",
+        "visual design", "graphic design", "logo design", "brand identity",
+        
+        # Innovation and invention
+        "innovate", "pioneer", "breakthrough", "revolutionary", "cutting edge",
+        "state of the art", "next generation", "futuristic", "visionary",
+        "groundbreaking", "game changing", "disruptive", "transformative",
+        
+        # Artistic expressions
+        "artistic vision", "creative expression", "aesthetic", "beautiful",
+        "elegant", "stylish", "trendy", "fashionable", "contemporary",
+        "modern", "abstract", "minimalist", "maximalist", "eclectic",
+        
+        # Collaboration and ideation
+        "brainstorming session", "idea generation", "creative collaboration",
+        "team creativity", "group thinking", "collective intelligence",
+        "crowdsourcing ideas", "mind mapping", "thought experiment"
     ]
-    if any(creative_ind in query_lower for creative_ind in creative_indicators):
-        return "creative"
     
     # Comprehensive comparison and analysis requests
     comparison_indicators = [
-        "compare", "versus", "vs", "difference", "similar", "contrast",
-        "better than", "worse than", "pros and cons", "advantages", "disadvantages",
+        # Direct comparisons
+        "compare", "versus", "vs", "v/s", "difference", "similar", "contrast",
+        "better than", "worse than", "superior to", "inferior to", "against",
+        "compared to", "in comparison", "side by side", "head to head",
+        
+        # Evaluation terms
+        "pros and cons", "advantages", "disadvantages", "benefits", "drawbacks",
+        "strengths", "weaknesses", "upsides", "downsides", "trade offs",
+        "trade-offs", "cost benefit", "risk reward", "risk-reward",
+        
+        # Decision making
         "which is better", "what's the difference", "whats the difference",
-        "analyze", "evaluation", "assessment", "review", "rank", "rating"
+        "which should i choose", "which one", "what's best", "whats best",
+        "recommend", "recommendation", "suggest", "advice", "opinion",
+        
+        # Analysis terms
+        "analyze", "analysis", "evaluation", "assessment", "review", "critique",
+        "examination", "study", "investigation", "research", "survey",
+        "rank", "ranking", "rating", "score", "grade", "benchmark",
+        
+        # Competitive analysis
+        "competitive analysis", "market comparison", "feature comparison",
+        "price comparison", "performance comparison", "quality comparison",
+        "value proposition", "competitive advantage", "market position",
+        
+        # Decision frameworks
+        "decision matrix", "criteria", "factors", "considerations", "variables",
+        "parameters", "metrics", "kpis", "key performance indicators",
+        "success factors", "critical factors", "determining factors"
     ]
-    if any(comp_ind in query_lower for comp_ind in comparison_indicators):
-        return "comparison"
     
     # Advanced transactional intent detection
     transactional_indicators = [
-        "buy", "purchase", "order", "shop", "price", "cost", "how much",
-        "where to buy", "store", "discount", "deal", "sale", "cheap",
-        "expensive", "affordable", "budget", "payment", "checkout",
-        "cart", "wishlist", "recommendation", "best", "top rated"
+        # Purchase intent
+        "buy", "purchase", "order", "shop", "shopping", "acquire", "get",
+        "obtain", "procure", "invest in", "spend on", "pay for", "book",
+        "reserve", "subscribe", "sign up", "register", "enroll",
+        
+        # Pricing and cost
+        "price", "cost", "how much", "how much does", "pricing", "rates",
+        "fees", "charges", "expense", "budget", "affordable", "cheap",
+        "expensive", "costly", "value", "worth", "investment", "roi",
+        
+        # Shopping behavior
+        "where to buy", "where can i buy", "store", "shop", "retailer",
+        "vendor", "supplier", "marketplace", "online store", "e-commerce",
+        "discount", "deal", "sale", "offer", "promotion", "coupon",
+        "bargain", "clearance", "markdown", "special offer",
+        
+        # Financial transactions
+        "payment", "checkout", "cart", "basket", "wishlist", "compare prices",
+        "best price", "lowest price", "cheapest", "most affordable",
+        "financing", "installments", "payment plan", "credit", "loan",
+        
+        # Product research
+        "recommendation", "best", "top rated", "highly rated", "reviews",
+        "testimonials", "user reviews", "customer reviews", "ratings",
+        "quality", "reliable", "durable", "warranty", "guarantee",
+        
+        # Commercial intent
+        "commercial", "business", "enterprise", "professional", "premium",
+        "subscription", "membership", "plan", "package", "bundle",
+        "upgrade", "downgrade", "trial", "free trial", "demo"
     ]
-    if any(trans_ind in query_lower for trans_ind in transactional_indicators):
-        return "transactional"
     
     # Comprehensive informational query detection
     informational_indicators = [
-        "what is", "what are", "who is", "who are", "when did", "when was",
-        "where is", "where are", "why", "how", "how many", "how much",
-        "define", "definition", "meaning", "explain", "describe", "tell me about",
-        "information about", "details about", "facts about", "history of",
-        "background", "overview", "summary", "introduction", "basics",
-        "fundamentals", "concept", "theory", "principle", "rule", "law"
+        # Question words
+        "what is", "what are", "what does", "what means", "what's the",
+        "who is", "who are", "who was", "who were", "whose", "whom",
+        "when did", "when was", "when were", "when will", "when does",
+        "where is", "where are", "where was", "where were", "where can",
+        "why", "why is", "why are", "why does", "why did", "why would",
+        "how", "how does", "how do", "how did", "how can", "how will",
+        "how many", "how much", "how often", "how long", "how far",
+        
+        # Definition and explanation
+        "define", "definition", "meaning", "means", "explain", "describe",
+        "elaborate", "clarify", "illustrate", "demonstrate", "show",
+        "tell me about", "information about", "details about", "facts about",
+        "data about", "statistics about", "numbers about", "figures about",
+        
+        # Knowledge seeking
+        "history of", "background", "context", "origin", "source", "cause",
+        "reason", "purpose", "function", "role", "importance", "significance",
+        "overview", "summary", "synopsis", "abstract", "introduction",
+        "basics", "fundamentals", "essentials", "key points", "main points",
+        
+        # Academic and scientific
+        "concept", "theory", "principle", "rule", "law", "formula", "equation",
+        "method", "process", "procedure", "technique", "approach", "strategy",
+        "framework", "model", "system", "structure", "organization",
+        
+        # Research and investigation
+        "research", "study", "investigation", "analysis", "examination",
+        "exploration", "discovery", "findings", "results", "conclusions",
+        "evidence", "proof", "documentation", "reference", "citation",
+        
+        # Learning and understanding
+        "understand", "comprehend", "grasp", "learn", "know", "realize",
+        "recognize", "identify", "distinguish", "differentiate", "categorize",
+        "classify", "organize", "structure", "arrange", "order"
     ]
     
     # Enhanced document-specific detection
     doc_indicators = [
-        "document", "pdf", "file", "uploaded", "this document", "this file",
-        "attachment", "report", "paper", "article", "text", "content",
-        "resume", "cv", "curriculum vitae", "portfolio", "manuscript",
-        "spreadsheet", "presentation", "slide", "image", "photo"
+        # File types
+        "document", "pdf", "file", "doc", "docx", "txt", "text file",
+        "spreadsheet", "excel", "xls", "xlsx", "csv", "presentation",
+        "powerpoint", "ppt", "pptx", "slide", "slides", "image", "photo",
+        "picture", "jpeg", "jpg", "png", "gif", "bmp", "tiff",
+        
+        # Document references
+        "uploaded", "attached", "this document", "this file", "the document",
+        "the file", "attachment", "enclosure", "appendix", "exhibit",
+        "report", "paper", "article", "manuscript", "thesis", "dissertation",
+        "essay", "proposal", "contract", "agreement", "policy", "manual",
+        
+        # Content types
+        "text", "content", "material", "data", "information", "details",
+        "resume", "cv", "curriculum vitae", "portfolio", "profile",
+        "biography", "bio", "background", "credentials", "qualifications",
+        "experience", "skills", "education", "achievements", "accomplishments",
+        
+        # Document actions
+        "read", "review", "analyze", "examine", "study", "parse", "extract",
+        "summarize", "outline", "highlight", "annotate", "comment", "edit",
+        "revise", "update", "modify", "change", "correct", "proofread",
+        
+        # Document structure
+        "page", "pages", "section", "chapter", "paragraph", "sentence",
+        "line", "word", "heading", "title", "subtitle", "header", "footer",
+        "table", "chart", "graph", "figure", "diagram", "illustration"
     ]
     
-    # Check for hybrid queries (informational + document-specific)
+    # Advanced conversational patterns
+    conversational_indicators = [
+        # Gratitude and appreciation
+        "thank you", "thanks", "thank", "appreciate", "grateful", "gratitude",
+        "much appreciated", "thanks a lot", "thank you so much", "many thanks",
+        "thanks again", "appreciate it", "appreciate that", "very grateful",
+        
+        # Positive feedback
+        "awesome", "great", "excellent", "wonderful", "amazing", "fantastic",
+        "perfect", "brilliant", "outstanding", "superb", "magnificent",
+        "marvelous", "incredible", "unbelievable", "impressive", "remarkable",
+        "extraordinary", "phenomenal", "spectacular", "fabulous", "terrific",
+        
+        # Apologies and corrections
+        "sorry", "apologize", "apologies", "my bad", "my mistake", "oops",
+        "mistake", "error", "wrong", "incorrect", "inaccurate", "misunderstood",
+        "clarification", "correction", "fix", "adjust", "modify", "revise",
+        
+        # Politeness markers
+        "please", "could you", "would you", "can you", "may i", "might i",
+        "if you don't mind", "if possible", "when convenient", "at your convenience",
+        "kindly", "gently", "politely", "respectfully", "humbly",
+        
+        # Opinion and belief
+        "i think", "i believe", "i feel", "i suppose", "i assume", "i guess",
+        "in my opinion", "personally", "from my perspective", "in my view",
+        "as i see it", "it seems to me", "i would say", "i consider",
+        "actually", "honestly", "frankly", "to be honest", "truthfully",
+        
+        # Agreement and disagreement
+        "agree", "disagree", "absolutely", "definitely", "certainly", "exactly",
+        "precisely", "indeed", "of course", "naturally", "obviously", "clearly",
+        "no doubt", "without question", "undoubtedly", "surely", "yes", "no",
+        
+        # Emotional expressions
+        "excited", "thrilled", "delighted", "pleased", "happy", "glad",
+        "satisfied", "content", "disappointed", "frustrated", "confused",
+        "surprised", "shocked", "amazed", "impressed", "concerned", "worried"
+    ]
+    
+    # Technical and troubleshooting queries
+    technical_indicators = [
+        # Problem identification
+        "error", "bug", "issue", "problem", "fault", "defect", "glitch",
+        "malfunction", "failure", "breakdown", "crash", "freeze", "hang",
+        "slow", "sluggish", "lag", "delay", "timeout", "unresponsive",
+        "not working", "broken", "damaged", "corrupted", "failed",
+        
+        # Solution seeking
+        "fix", "solve", "resolve", "repair", "troubleshoot", "debug",
+        "diagnose", "identify", "locate", "find", "detect", "discover",
+        "remedy", "correct", "address", "handle", "deal with", "work around",
+        
+        # System operations
+        "install", "uninstall", "setup", "configure", "settings", "options",
+        "preferences", "parameters", "properties", "attributes", "features",
+        "functions", "capabilities", "specifications", "requirements",
+        
+        # Updates and maintenance
+        "update", "upgrade", "downgrade", "patch", "hotfix", "rollback",
+        "restore", "backup", "recovery", "maintenance", "optimization",
+        "performance", "speed", "efficiency", "reliability", "stability",
+        
+        # Compatibility and integration
+        "compatibility", "compatible", "support", "supported", "integration",
+        "interface", "api", "connection", "connectivity", "network",
+        "protocol", "standard", "format", "encoding", "decoding",
+        
+        # Technical specifications
+        "version", "build", "release", "edition", "variant", "model",
+        "type", "category", "class", "architecture", "platform", "framework",
+        "library", "module", "component", "dependency", "requirement"
+    ]
+    
+    # Educational and learning queries
+    educational_indicators = [
+        # Learning activities
+        "learn", "study", "understand", "comprehend", "grasp", "master",
+        "acquire", "develop", "improve", "enhance", "strengthen", "build",
+        "practice", "exercise", "drill", "rehearse", "review", "revise",
+        
+        # Educational contexts
+        "course", "class", "lesson", "lecture", "seminar", "workshop",
+        "tutorial", "training", "instruction", "teaching", "coaching",
+        "mentoring", "guidance", "supervision", "education", "learning",
+        
+        # Academic institutions
+        "school", "university", "college", "institute", "academy", "campus",
+        "classroom", "laboratory", "library", "department", "faculty",
+        "academic", "scholarly", "educational", "pedagogical", "curricular",
+        
+        # Research and scholarship
+        "research", "study", "investigation", "analysis", "thesis", "dissertation",
+        "paper", "publication", "journal", "article", "book", "textbook",
+        "reference", "citation", "bibliography", "literature", "sources",
+        
+        # Assessment and evaluation
+        "assignment", "homework", "project", "task", "exercise", "activity",
+        "exam", "test", "quiz", "assessment", "evaluation", "grading",
+        "grade", "score", "mark", "result", "performance", "achievement",
+        
+        # Credentials and certification
+        "certificate", "certification", "diploma", "degree", "qualification",
+        "credential", "license", "accreditation", "recognition", "award",
+        "honor", "distinction", "merit", "excellence", "achievement",
+        
+        # Skills and competencies
+        "skill", "ability", "competency", "proficiency", "expertise", "knowledge",
+        "understanding", "capability", "talent", "aptitude", "potential",
+        "development", "growth", "progress", "advancement", "improvement"
+    ]
+    
+    # Personal and lifestyle queries
+    personal_indicators = [
+        # Personal pronouns and references
+        "my", "mine", "myself", "i am", "i'm", "i was", "i have", "i've",
+        "i will", "i'll", "i would", "i'd", "i should", "i could", "i can",
+        "personal", "private", "individual", "own", "self", "me", "myself",
+        
+        # Lifestyle and habits
+        "lifestyle", "life", "living", "habit", "habits", "routine", "daily",
+        "schedule", "time management", "organization", "planning", "goals",
+        "objectives", "targets", "aspirations", "dreams", "wishes", "hopes",
+        
+        # Health and wellness
+        "health", "healthy", "wellness", "wellbeing", "fitness", "exercise",
+        "workout", "training", "diet", "nutrition", "eating", "food",
+        "sleep", "rest", "relaxation", "stress", "anxiety", "depression",
+        "mental health", "physical health", "medical", "doctor", "treatment",
+        
+        # Relationships and social
+        "relationship", "relationships", "family", "friends", "social",
+        "dating", "marriage", "partner", "spouse", "children", "kids",
+        "parents", "siblings", "relatives", "community", "network",
+        "communication", "interaction", "connection", "bond", "love",
+        
+        # Career and work
+        "career", "job", "work", "employment", "profession", "occupation",
+        "business", "company", "organization", "workplace", "office",
+        "salary", "income", "money", "finance", "financial", "budget",
+        "savings", "investment", "retirement", "promotion", "advancement",
+        
+        # Hobbies and interests
+        "hobby", "hobbies", "interest", "interests", "passion", "passions",
+        "activity", "activities", "recreation", "entertainment", "fun",
+        "enjoyment", "pleasure", "satisfaction", "fulfillment", "happiness",
+        "joy", "excitement", "enthusiasm", "motivation", "inspiration",
+        
+        # Personal development
+        "growth", "development", "improvement", "progress", "change",
+        "transformation", "evolution", "journey", "path", "direction",
+        "purpose", "meaning", "values", "beliefs", "principles", "ethics",
+        "character", "personality", "identity", "self-awareness", "mindfulness"
+    ]
+
+    # 1. HIGHEST PRIORITY: Exact phrase matches
+    if any(greeting in query_lower for greeting in greeting_indicators):
+        return "greeting"
+    if any(farewell in query_lower for farewell in farewell_indicators):
+        return "farewell"
+    # 2. SPECIFIC INTENT: Help requests (before general)
+    if any(help_ind in query_lower for help_ind in help_indicators):
+        return "help_request"
+    # 3. CREATIVE AND COMPARISON (specific patterns)
+    if any(creative_ind in query_lower for creative_ind in creative_indicators):
+        return "creative"
+    if any(comp_ind in query_lower for comp_ind in comparison_indicators):
+        return "comparison"
+    # 4. TECHNICAL (before general informational)
+    if any(tech_ind in query_lower for tech_ind in technical_indicators):
+        return "technical"
+    # 5. TRANSACTIONAL (specific commercial intent)
+    if any(trans_ind in query_lower for trans_ind in transactional_indicators):
+        return "transactional"
+    # 6. DOCUMENT AND INFORMATIONAL ANALYSIS
     has_informational = any(info_ind in query_lower for info_ind in informational_indicators)
     has_document_ref = any(doc_ind in query_lower for doc_ind in doc_indicators)
-    
     if has_informational and has_document_ref:
         return "hybrid"
     elif has_informational:
         return "general"
-    
-    # Advanced conversational patterns
-    conversational_indicators = [
-        "thank you", "thanks", "appreciate", "grateful", "awesome", "great",
-        "perfect", "excellent", "wonderful", "amazing", "fantastic",
-        "sorry", "apologize", "my bad", "oops", "mistake", "error",
-        "please", "could you", "would you", "can you", "may i",
-        "i think", "i believe", "in my opinion", "personally", "actually"
-    ]
-    if any(conv_ind in query_lower for conv_ind in conversational_indicators):
-        return "conversational"
-    
-    # Technical and troubleshooting queries
-    technical_indicators = [
-        "error", "bug", "issue", "problem", "fix", "solve", "troubleshoot",
-        "debug", "crash", "freeze", "slow", "not working", "broken",
-        "install", "setup", "configure", "settings", "options", "preferences",
-        "update", "upgrade", "version", "compatibility", "requirements"
-    ]
-    if any(tech_ind in query_lower for tech_ind in technical_indicators):
-        return "technical"
-    
-    # Educational and learning queries
-    educational_indicators = [
-        "learn", "study", "course", "lesson", "tutorial", "training",
-        "education", "academic", "school", "university", "college",
-        "research", "thesis", "dissertation", "assignment", "homework",
-        "exam", "test", "quiz", "grade", "score", "certificate"
-    ]
+    # 7. EDUCATIONAL (after informational to avoid conflicts)
     if any(edu_ind in query_lower for edu_ind in educational_indicators):
         return "educational"
-    
-    # Personal and lifestyle queries
-    personal_indicators = [
-        "my", "i am", "i'm", "personal", "lifestyle", "habit", "routine",
-        "health", "fitness", "diet", "nutrition", "exercise", "wellness",
-        "relationship", "family", "friend", "career", "job", "work",
-        "hobby", "interest", "passion", "goal", "dream", "aspiration"
-    ]
+    # 8. PERSONAL (lowest priority for overlapping words)
     if any(pers_ind in query_lower for pers_ind in personal_indicators):
         return "personal"
-    
-    # Check for document-specific queries
+    # 9. CONVERSATIONAL
+    if any(conv_ind in query_lower for conv_ind in conversational_indicators):
+        return "conversational"
+    # 10. DOCUMENT-SPECIFIC
     if has_document_ref:
         return "document_specific"
-    
-    # Fallback for unclear or ambiguous queries
+    # 11. FALLBACKS
     if len(query_lower.split()) < 3:
         return "unclear"
     
@@ -618,6 +930,13 @@ async def process_query(request: QueryRequest):
         
         # Handle general knowledge queries directly when no documents available
         # Handle greetings with personalized and contextual responses
+
+        if query_type not in ["greeting", "farewell", "help_request", "creative", "comparison", 
+                      "conversational", "unclear", "general", "technical", "educational", 
+                      "personal", "transactional", "hybrid", "document_specific"]:
+            print(f"⚠️ Unhandled query type: {query_type}, defaulting to general knowledge")
+            query_type = "general"
+            
         if query_type == "greeting":
             greeting_responses = [
                 "Hello! I'm your intelligent AI assistant, ready to help you explore knowledge and analyze your documents. What would you like to discover today?",
@@ -745,6 +1064,82 @@ async def process_query(request: QueryRequest):
             """
             
             direct_response = Settings.llm.complete(comparison_prompt)
+            return QueryResponse(
+                response=str(direct_response),
+                sources=[],
+                model_used=MODEL_GLOBAL,
+                processing_time=time.time() - start_time
+            )
+        
+        # Handle technical queries
+        if query_type == "technical":
+            technical_prompt = f"""
+            You are a technical support specialist. Provide detailed technical guidance and solutions.
+            Address the technical issue comprehensively with troubleshooting steps and explanations.
+            
+            Technical query: {request.query}
+            
+            Provide comprehensive technical assistance:
+            """
+            
+            direct_response = Settings.llm.complete(technical_prompt)
+            return QueryResponse(
+                response=str(direct_response),
+                sources=[],
+                model_used=MODEL_GLOBAL,
+                processing_time=time.time() - start_time
+            )
+
+        # Handle educational queries
+        if query_type == "educational":
+            educational_prompt = f"""
+            You are an educational instructor. Provide comprehensive learning guidance and information.
+            Structure your response to be educational, informative, and easy to understand.
+            
+            Educational query: {request.query}
+            
+            Provide detailed educational content:
+            """
+            
+            direct_response = Settings.llm.complete(educational_prompt)
+            return QueryResponse(
+                response=str(direct_response),
+                sources=[],
+                model_used=MODEL_GLOBAL,
+                processing_time=time.time() - start_time
+            )
+
+        # Handle personal queries
+        if query_type == "personal":
+            personal_prompt = f"""
+            You are a personal advisor and coach. Provide helpful, personalized guidance and recommendations.
+            Address the personal aspect of the query with empathy and practical advice.
+            
+            Personal query: {request.query}
+            
+            Provide personalized guidance and recommendations:
+            """
+            
+            direct_response = Settings.llm.complete(personal_prompt)
+            return QueryResponse(
+                response=str(direct_response),
+                sources=[],
+                model_used=MODEL_GLOBAL,
+                processing_time=time.time() - start_time
+            )
+
+        # Handle transactional queries
+        if query_type == "transactional":
+            transactional_prompt = f"""
+            You are a shopping and purchasing advisor. Provide helpful guidance about products, services, and purchasing decisions.
+            Include recommendations, comparisons, and practical purchasing advice.
+            
+            Transactional query: {request.query}
+            
+            Provide comprehensive purchasing guidance:
+            """
+            
+            direct_response = Settings.llm.complete(transactional_prompt)
             return QueryResponse(
                 response=str(direct_response),
                 sources=[],
