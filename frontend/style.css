@@ -3603,6 +3603,7 @@ body {
   border-radius: 25px;
   transition: margin-left 0.3s ease-in-out;
   min-height: 100vh;
+  justify-content: center;
 }
 
 /* Sidebar Base Styles */
@@ -4505,7 +4506,7 @@ body {
   width: 100%;
   padding: var(--space-16) var(--space-24);
   margin-bottom: 0px;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-in-out;
   min-height: 400px;
   max-height: calc(100vh - 200px); /* Fixed maximum height */
   height: calc(100vh - 200px); /* Fixed height based on viewport */
@@ -4712,12 +4713,13 @@ body {
   }
   
   .message {
-    max-width: 65%;
+    max-width: 60%;
   }
 }
 
 @media (min-width: 1200px) {
   .chat-container {
+    width : 100% ;
     padding-left: var(--space-24);
     padding-right: var(--space-24);
   }
@@ -4730,14 +4732,14 @@ body {
   }
   
   .message {
-    max-width: 65%; /* Even smaller bubbles on very large screens */
+    max-width: 60%; /* Even smaller bubbles on very large screens */
   }
 }
 
 @media (min-width: 1920px) {
   .chat-container {
-    padding-left: 4rem;
-    padding-right: 4rem;
+    padding-left: 6rem;
+    padding-right: 6rem;
   }
 }
 
